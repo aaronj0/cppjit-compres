@@ -141,9 +141,10 @@ def _disable_pch():
 def _warn_no_pch(msg, pchname=None):
     if pchname is None or not os.path.exists(pchname):
         _disable_pch()
-        warnings.warn('No precompiled header available (%s); this may impact performance.' % msg)
+        # warnings.warn('No precompiled header available (%s); this may impact performance.' % msg)
     else:
-        warnings.warn('Precompiled header may be out of date (%s).' % msg)
+        # warnings.warn('Precompiled header may be out of date (%s).' % msg)
+        pass
 
 def _is_uptodate(pchname, incpath):
   # check for forced rebuild
