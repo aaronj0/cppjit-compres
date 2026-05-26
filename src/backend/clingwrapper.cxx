@@ -284,11 +284,11 @@ public:
         Cpp::Declare("namespace __cppyy_internal { template<class C1, class C2>"
                      " bool is_equal(const C1& c1, const C2& c2) { return "
                      "(bool)(c1 == c2); } }",
-                     /*silent=*/false);
+                     /*silent=*/false, /*I=*/nullptr);
         Cpp::Declare("namespace __cppyy_internal { template<class C1, class C2>"
                      " bool is_not_equal(const C1& c1, const C2& c2) { return "
                      "(bool)(c1 != c2); } }",
-                     /*silent=*/false);
+                     /*silent=*/false, /*I=*/nullptr);
 
         // Define gCling when we run with clang-repl.
         // FIXME: We should get rid of all the uses of gCling as this seems to
@@ -303,7 +303,7 @@ public:
 
     // helper for multiple inheritance
         Cpp::Declare("namespace __cppyy_internal { struct Sep; }",
-                     /*silent=*/false);
+                     /*silent=*/false, /*I=*/nullptr);
 
         // std::string libInterOp = I->getDynamicLibraryManager()->lookupLibrary("libcling");
         // void *interopDL = dlopen(libInterOp.c_str(), RTLD_LAZY);
@@ -376,7 +376,7 @@ bool Cppyy::Compile(const std::string& code, bool silent)
 {
     std::lock_guard<std::recursive_mutex> Lock(InterOpMutex);
     // Declare returns an enum which equals 0 on success
-    return !Cpp::Declare(code.c_str(), silent);
+    return !Cpp::Declare(code.c_str(), silent, /*I=*/nullptr);
 }
 
 std::string Cppyy::ToString(TCppType_t klass, TCppObject_t obj)
@@ -697,10 +697,10 @@ bool Cppyy::AppendTypesSlow(const std::string& name,
   static unsigned long long struct_count = 0;
   std::string code = "template<typename ...T> struct __Cppyy_AppendTypesSlow {};\n";
   if (!struct_count)
-    Cpp::Declare(code.c_str(), /*silent=*/true); // initialize the trampoline
+    Cpp::Declare(code.c_str(), /*silent=*/true, /*I=*/nullptr); // initialize the trampoline
 
   std::string var = "__Cppyy_s" + std::to_string(struct_count++);
-  if (!Cpp::Declare(("__Cppyy_AppendTypesSlow<" + resolved_name + "> " + var +";\n").c_str(), /*silent=*/true)) {
+  if (!Cpp::Declare(("__Cppyy_AppendTypesSlow<" + resolved_name + "> " + var +";\n").c_str(), /*silent=*/true, /*I=*/nullptr)) {
     std::lock_guard<std::recursive_mutex> Lock(InterOpMutex);
     TCppType_t varN =
         Cpp::GetVariableType(Cpp::GetNamed(var.c_str(), /*parent=*/nullptr));
@@ -784,7 +784,7 @@ Cppyy::TCppType_t Cppyy::GetType(const std::string &name, bool enable_slow_looku
     std::string id = "__Cppyy_GetType_" + std::to_string(var_count++);
     std::string using_clause = "using " + id + " = __typeof__(" + name + ");\n";
 
-    if (!Cpp::Declare(using_clause.c_str(), /*silent=*/true)) {
+    if (!Cpp::Declare(using_clause.c_str(), /*silent=*/true, /*I=*/nullptr)) {
       TCppScope_t lookup = Cpp::GetNamed(id, 0);
       TCppType_t lookup_ty = Cpp::GetTypeFromScope(lookup);
       return Cpp::GetCanonicalType(lookup_ty);

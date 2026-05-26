@@ -205,7 +205,7 @@ class _stderr_capture(object):
 def cppdef(src, verbose = True):
     """Declare C++ source <src> to Cling."""
     with _stderr_capture() as err:
-        errcode = gbl.Cpp.Declare(src, not verbose)
+        errcode = gbl.Cpp.Declare(src, not verbose, _backend.nullptr)
     if not errcode == 0 or err.err:
         if 'warning' in err.err.lower() and not 'error' in err.err.lower():
             warnings.warn(err.err, SyntaxWarning)
@@ -268,7 +268,7 @@ def load_library(name):
 def include(header):
     """Load (and JIT) header file <header> into Cling."""
     with _stderr_capture() as err:
-        errcode = gbl.Cpp.Declare('#include "%s"' % header, False)
+        errcode = gbl.Cpp.Declare('#include "%s"' % header, False, _backend.nullptr)
     if not errcode == 0:
         raise ImportError('Failed to load header file "%s"%s' % (header, err.err))
     return True
@@ -278,7 +278,7 @@ def c_include(header):
     with _stderr_capture() as err:
         errcode = gbl.Cpp.Declare("""extern "C" {
                                     #include "%s"
-                                    }""" % header, False)
+                                    }""" % header, False, _backend.nullptr)
     if not errcode == 0:
         raise ImportError('Failed to load header file "%s"%s' % (header, err.err))
     return True

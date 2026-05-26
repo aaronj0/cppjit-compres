@@ -197,7 +197,7 @@ def load_reflection_info(name):
     result = Cpp.LoadLibrary(name, True)
     if name.endswith("Dict.so"):
         header = name[:-7] + ".h"
-        Cpp.Declare('#include "' + header +'"', False)
+        Cpp.Declare('#include "' + header +'"', False, _backend.nullptr)
 
     if result == False:
         raise RuntimeError('Could not load library "%s"' % (name))
