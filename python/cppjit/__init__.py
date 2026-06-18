@@ -58,6 +58,7 @@ def _enable_cuda():
 
 
 _CUDA_ENABLED = _enable_cuda()
+CUDA_ENABLED = _CUDA_ENABLED   # public: True when import created a --cuda interpreter
 
 from .cppyy import *            # noqa: E402,F401,F403  (adopts the interpreter above)
 from .cppyy import gbl, _backend  # noqa: E402,F401
