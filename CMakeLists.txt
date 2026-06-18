@@ -100,8 +100,8 @@ if(CMAKE_CXX_COMPILER)
 endif()
 
 ExternalProject_Add(CppInterOp
-    GIT_REPOSITORY https://github.com/compiler-research/CppInterOp.git
-    GIT_TAG        ${CPPINTEROP_GIT_TAG}
+    GIT_REPOSITORY https://github.com/aaronj0/CppInterOp.git
+    GIT_TAG        dev/isc-patches
     GIT_SHALLOW    ON
     PREFIX         "${CMAKE_BINARY_DIR}/CppInterOp"
     CMAKE_ARGS     ${_interop_cmake_args}
