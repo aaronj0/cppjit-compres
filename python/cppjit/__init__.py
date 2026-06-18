@@ -60,8 +60,36 @@ def _enable_cuda():
 _CUDA_ENABLED = _enable_cuda()
 CUDA_ENABLED = _CUDA_ENABLED   # public: True when import created a --cuda interpreter
 
-from .cppyy import *            # noqa: E402,F401,F403  (adopts the interpreter above)
-from .cppyy import gbl, _backend  # noqa: E402,F401
+
+import contextlib as _contextlib
+
+
+@_contextlib.contextmanager
+def _silence_fd2():
+    """Silence the C-level stderr (fd 2) for the duration of the block."""
+    saved = _os.dup(2)
+    null = _os.open(_os.devnull, _os.O_WRONLY)
+    try:
+        _os.dup2(null, 2)
+        _os.close(null)
+        yield
+    finally:
+        _os.dup2(saved, 2)
+        _os.close(saved)
+
+
+# Load the backend. Under --cuda its bootstrap emits a couple of benign clang
+# parse-errors (CppInternal::Dispatch / cling::runtime type probes); silence
+# fd 2 just for this import so notebooks start clean. Diagnostics from later
+# cppjit.cppdef calls are unaffected (they run outside this window).
+_import_ctx = _silence_fd2() if _CUDA_ENABLED else _contextlib.nullcontext()
+with _import_ctx:
+    from . import cppyy as _cppyy  # noqa: E402  (adopts the interpreter above)
+
+for _name in getattr(_cppyy, "__all__", []):
+    globals()[_name] = getattr(_cppyy, _name)
+gbl = _cppyy.gbl
+_backend = _cppyy._backend
 
 
 if _CUDA_ENABLED:
