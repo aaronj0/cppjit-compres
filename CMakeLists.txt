@@ -101,7 +101,7 @@ endif()
 
 ExternalProject_Add(CppInterOp
     GIT_REPOSITORY https://github.com/aaronj0/CppInterOp.git
-    GIT_TAG        dev/isc-patches
+    GIT_TAG        isc2026
     GIT_SHALLOW    ON
     PREFIX         "${CMAKE_BINARY_DIR}/CppInterOp"
     CMAKE_ARGS     ${_interop_cmake_args}
