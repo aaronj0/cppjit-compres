@@ -32,7 +32,11 @@ def _enable_cuda():
     if not _os.path.exists(lib):
         return False
     cuda = _os.environ.get("CUDA", "/usr/local/cuda-12.9")
-    arch = _os.environ.get("CPPJIT_OFFLOAD_ARCH", "sm_89")
+    # Offload arch: if CPPJIT_OFFLOAD_ARCH is set we honour it, otherwise we omit
+    # --offload-arch entirely so clang-repl detects the arch from the live GPU.
+    # That keeps the image portable across GPUs (sm_80 / sm_89 / sm_90), which a
+    # pinned arch would not, because PTX is only forward-compatible.
+    arch = _os.environ.get("CPPJIT_OFFLOAD_ARCH", "")
     try:
         iop = ctypes.CDLL(lib, ctypes.RTLD_GLOBAL)
         iop.cppinterop_CreateInterpreter.restype = ctypes.c_void_p
@@ -47,8 +51,11 @@ def _enable_cuda():
             arr = (ctypes.c_char_p * len(a))(*[s.encode() for s in a])
             return arr, len(a)
 
+        gpu_args = ["--cuda", f"--cuda-path={cuda}"]
+        if arch:
+            gpu_args.append(f"--offload-arch={arch}")
         h_, hn = _argv(["-std=c++17", "-march=native"])
-        g_, gn = _argv(["--cuda", f"--cuda-path={cuda}", f"--offload-arch={arch}"])
+        g_, gn = _argv(gpu_args)
         if not iop.cppinterop_CreateInterpreter(h_, hn, g_, gn):
             return False
         _iop_cuda = iop
