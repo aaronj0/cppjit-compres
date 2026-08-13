@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  # PR-only: don't cancel an in-flight push validation on master.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-test:
+    name: ${{ matrix.os }}/llvm${{ matrix.llvm }}/py${{ matrix.py }}/c++${{ matrix.cxx }}${{ matrix.vg && '/vg' || '' }}${{ matrix.flavor == 'cling' && '/cling' || '' }}
+    strategy:
+      fail-fast: false
+      # Mirrors CppInterOp's cppyy PR cells: clang-repl on the same OS/arch/LLVM
+      # /valgrind combos at Python 3.14, plus a cling cell. Breadth (3.12/3.13,
+      # C++17, LLVM 20, arm) lives in nightly.
+      matrix:
+        include:
+          - { os: ubuntu-24.04,   llvm: '21', flavor: system, py: '3.14', cxx: '20', vg: true }
+          - { os: ubuntu-24.04,   llvm: '22', flavor: '',     py: '3.14', cxx: '20' }
+          - { os: macos-26,       llvm: '21', flavor: system, py: '3.14', cxx: '20' }
+          - { os: macos-26-intel, llvm: '21', flavor: system, py: '3.14', cxx: '20' }
+          # cling backend, against the cached llvm-root (cling-llvm20) recipe cell.
+          - { os: ubuntu-24.04,   llvm: '20', flavor: cling,  flavor_version: cling-llvm20, py: '3.14', cxx: '20' }
+    uses: compiler-research/ci-workflows/.github/workflows/cppjit.yml@main
+    with:
+      # CppInterOp is pinned in CppJIT's cmake to a commit compatible
+      # with the current forks.
+      cppjit-repo: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+      cppjit-ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      os: ${{ matrix.os }}
+      llvm-version: ${{ matrix.llvm }}
+      llvm-flavor: ${{ matrix.flavor }}
+      llvm-flavor-version: ${{ matrix.flavor_version || '' }}
+      python-version: ${{ matrix.py }}
+      cxx-standard: ${{ matrix.cxx }}
+      valgrind: ${{ matrix.vg || false }}
+      run-xfail-crashing-tests: true
+
+  report:
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    needs: build-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: result-*
+
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- cppjit-ci -->';
+
+            const rows = fs.readdirSync('.').filter(d => d.startsWith('result-')).sort().map(d => {
+              const cfg = d.replace('result-', '');
+              const file = `${d}/pytest-summary.txt`;
+              const lines = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').trim().split('\n') : [];
+              const result = lines.length ? lines.at(-1) : 'no output';
+              return `| ${cfg} | \`${result}\` |`;
+            });
+
+            const body = [marker, '## Test Results', '| Configuration | Result |', '|---|---|', ...rows].join('\n');
+
+            // Run summary works even with a read-only token (fork PRs).
+            await core.summary.addRaw(body).write();
+
+            // PR comment needs pull-requests:write, downgraded to read-only on
+            // fork PRs — don't fail the job when the write errors out.
+            try {
+              const { data: comments } = await github.rest.issues.listComments({
+                ...context.repo, issue_number: context.issue.number,
+              });
+              const existing = comments.find(c => c.body.startsWith(marker));
+              if (existing) {
+                await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body });
+              } else {
+                await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
+              }
+            } catch (e) {
+              core.warning(`Could not post PR comment (likely a fork PR with a read-only token): ${e.message}`);
+            }
