@@ -760,6 +760,8 @@ size_t interop::SizeOf(TCppScope_t klass) {
 }
 
 size_t interop::SizeOfType(TCppType_t klass) {
+  if (!klass)
+    return 0;
   std::lock_guard<std::recursive_mutex> Lock(InterOpMutex);
   return Cpp::GetSizeOfType(klass);
 }
