@@ -977,7 +977,10 @@ void interop::CallDestructor(TCppScope_t scope, TCppObject_t self) {
 interop::TCppObject_t interop::CallO(TCppMethod_t method, TCppObject_t self,
                                      size_t nargs, void* args,
                                      TCppType_t result_type) {
-  void* obj = ::operator new(interop::SizeOfType(result_type));
+  size_t size = interop::SizeOfType(result_type);
+  if (size == 0)
+    return TCppObject_t{}; // unsizable return type; the caller reports
+  void* obj = ::operator new(size);
   if (WrapperCall(method, nargs, args, self.data, obj))
     return (TCppObject_t)obj;
   ::operator delete(obj);

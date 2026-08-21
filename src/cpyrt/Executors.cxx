@@ -679,8 +679,10 @@ PyObject* cpyrt::InstanceExecutor::Execute(interop::TCppMethod_t method,
 
   if (!value) {
     if (!PyErr_Occurred()) // callee may have set a python error itself
-      PyErr_SetString(PyExc_ValueError,
-                      "nullptr result where temporary expected");
+      PyErr_Format(PyExc_ValueError,
+                   "cannot allocate the temporary returned by '%s': the size "
+                   "of its return type is unknown",
+                   interop::GetMethodSignature(method, true).c_str());
     return nullptr;
   }
 
