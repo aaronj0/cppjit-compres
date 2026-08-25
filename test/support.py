@@ -103,3 +103,4 @@ IS_CPP23 = (
     == 1
 )
 IS_VALGRIND = True if os.getenv("IS_VALGRIND") else False
+IS_CUDA = os.getenv("CPPJIT_ENABLE_CUDA", "0") not in ("", "0")
