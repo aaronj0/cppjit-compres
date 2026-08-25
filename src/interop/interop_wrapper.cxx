@@ -62,6 +62,7 @@ static std::set<std::string> g_builtins = {"bool",
 
 // configuration
 static bool gEnableFastPath = true;
+static bool g_cuda_enabled = false;
 
 // global initialization -----------------------------------------------------
 namespace {
@@ -144,7 +145,27 @@ acquireOrCreateInterpreter(const InterOpPaths& Paths) {
     args.push_back("-resource-dir");
     args.push_back(resourceDir.c_str());
   }
-  return Cpp::CreateInterpreter(args, /*GpuArgs=*/{});
+  // CPPJIT_ENABLE_CUDA=1 makes the interpreter a CUDA host/device pair
+  // (clang-repl --cuda). CppInterOp detects the toolkit and the live
+  // GPU's architecture itself; CPPJIT_CUDA_PATH and CPPJIT_OFFLOAD_ARCH
+  // override the detection. Requires an NVPTX-enabled LLVM.
+  std::vector<const char*> gpuArgs;
+  std::string cudaPath, offloadArch;
+  if (const char* enable = std::getenv("CPPJIT_ENABLE_CUDA")) {
+    if (*enable && std::strcmp(enable, "0") != 0) {
+      gpuArgs.push_back("--cuda");
+      if (const char* p = std::getenv("CPPJIT_CUDA_PATH")) {
+        cudaPath = std::string("--cuda-path=") + p;
+        gpuArgs.push_back(cudaPath.c_str());
+      }
+      if (const char* a = std::getenv("CPPJIT_OFFLOAD_ARCH")) {
+        offloadArch = std::string("--offload-arch=") + a;
+        gpuArgs.push_back(offloadArch.c_str());
+      }
+      g_cuda_enabled = true;
+    }
+  }
+  return Cpp::CreateInterpreter(args, gpuArgs);
 }
 
 static void configureInterpreter(const InterOpPaths& Paths) {
@@ -1635,6 +1656,40 @@ interop::AdaptFunctionForLambdaReturn(interop::TCppMethod_t fn) {
       return TCppMethod_t(res.data);
   }
   return fn;
+}
+
+bool interop::IsCUDAEnabled() { return g_cuda_enabled; }
+
+bool interop::IsCUDAFunction(interop::TCppMethod_t method) {
+  std::lock_guard<std::recursive_mutex> Lock(InterOpMutex);
+  return Cpp::IsCUDAFunction(TCppScope_t(method.data));
+}
+
+// A __global__ kernel cannot be called from the host directly; define a
+// same-named launcher template so python spells the launch configuration
+// as explicit template arguments: gbl.kern[grid, block](args...).
+void interop::AdaptCUDAFunction(interop::TCppMethod_t fn) {
+  std::lock_guard<std::recursive_mutex> Lock(InterOpMutex);
+
+  std::string fn_name = Cpp::GetQualifiedCompleteName(TCppScope_t(fn.data));
+  std::string signature = interop::GetMethodSignature(fn, true);
+
+  std::ostringstream call;
+  call << "(";
+  for (size_t i = 0, n = interop::GetMethodNumArgs(fn); i < n; i++) {
+    call << interop::GetMethodArgName(fn, i);
+    if (i != n - 1)
+      call << ", ";
+  }
+  call << ")";
+
+  std::ostringstream code;
+  code << "template <int _Grid, int _Block>\n"
+       << "auto " << fn_name << signature << " { return " << fn_name
+       << "<<<_Grid, _Block>>>" << call.str() << "; }\n";
+  if (!interop::Compile(code.str().c_str()))
+    std::cerr << "[cppjit-backend] Failed to define a CUDA launcher for "
+              << fn_name << std::endl;
 }
 
 interop::TCppType_t interop::GetDatamemberType(TCppScope_t var) {

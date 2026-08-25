@@ -340,6 +340,14 @@ bool IsStaticMethod(TCppMethod_t method);
 RPY_EXPORTED
 bool IsExplicit(TCppMethod_t method);
 
+// CUDA mode -------------------------------------------------------------------
+RPY_EXPORTED
+bool IsCUDAEnabled();
+RPY_EXPORTED
+bool IsCUDAFunction(TCppMethod_t method);
+RPY_EXPORTED
+void AdaptCUDAFunction(TCppMethod_t fn);
+
 // data member reflection information ----------------------------------------
 RPY_EXPORTED
 void GetDatamembers(TCppScope_t scope, std::vector<TCppScope_t>& datamembers);
