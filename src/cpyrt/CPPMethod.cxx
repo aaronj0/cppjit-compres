@@ -400,6 +400,8 @@ cpyrt::CPPMethod::CPPMethod(interop::TCppScope_t scope,
     fMethod = interop::ReduceReturnType(fMethod, TypeReductionMap[result]);
   if (result && interop::IsLambdaClass(result))
     fMethod = interop::AdaptFunctionForLambdaReturn(fMethod);
+  if (interop::IsCUDAEnabled() && fMethod && interop::IsCUDAFunction(fMethod))
+    interop::AdaptCUDAFunction(fMethod);
 }
 
 //----------------------------------------------------------------------------
