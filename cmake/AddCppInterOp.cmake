@@ -61,6 +61,14 @@ function(cppjit_add_cppinterop)
         list(APPEND _args -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER})
     endif()
 
+    if(CPPJIT_SANITIZERS)
+        # CppInterOp's HandleLLVMOptions applies the matching -fsanitize=
+        # flags. CMAKE_ARGS would split the semicolons in a multi-sanitizer
+        # value; LIST_SEPARATOR restores them in the sub-build.
+        string(REPLACE ";" "|" _use_sanitizer "${CPPJIT_SANITIZERS}")
+        list(APPEND _args -DLLVM_USE_SANITIZER=${_use_sanitizer})
+    endif()
+
     set(_source_args
         GIT_REPOSITORY ${CPPINTEROP_GIT_REPOSITORY}
         GIT_TAG        ${CPPINTEROP_GIT_TAG}
@@ -88,6 +96,7 @@ function(cppjit_add_cppinterop)
     ExternalProject_Add(CppInterOp
         ${_source_args}
         PREFIX         "${CMAKE_BINARY_DIR}/CppInterOp"
+        LIST_SEPARATOR "|"
         CMAKE_ARGS     ${_args}
         BUILD_BYPRODUCTS
             "${CPPINTEROP_INSTALL_DIR}/lib/libclangCppInterOp${CMAKE_SHARED_LIBRARY_SUFFIX}"

@@ -15,6 +15,8 @@ set(CPPINTEROP_GIT_REPOSITORY "https://github.com/compiler-research/CppInterOp.g
 set(CPPINTEROP_GIT_TAG "8d624c621a4b95e36ff73ac708c85a768287478f" CACHE STRING "")
 set(CPPINTEROP_SOURCE_DIR "" CACHE PATH
     "Override default CppInterOp built by ExternalProject_Add, with a path to local CppInterOp source")
+set(CPPJIT_SANITIZERS "" CACHE STRING
+    "Sanitizers for libcppjit and the CppInterOp build (semicolon-separated: Address, Undefined)")
 
 # The full Development component requires libpython, which manylinux
 # images do not ship and extension modules do not need.
@@ -141,6 +143,24 @@ target_include_directories(cppjit PRIVATE
 target_compile_options(cppjit PRIVATE
     -Wall -Wno-strict-aliasing -Wno-register
 )
+
+if(CPPJIT_SANITIZERS)
+    set(_sanitizer_flags "")
+    foreach(_sanitizer IN LISTS CPPJIT_SANITIZERS)
+        if(_sanitizer STREQUAL "Address")
+            list(APPEND _sanitizer_flags -fsanitize=address)
+        elseif(_sanitizer STREQUAL "Undefined")
+            list(APPEND _sanitizer_flags -fsanitize=undefined)
+        else()
+            message(FATAL_ERROR
+                "Unsupported sanitizer '${_sanitizer}' in CPPJIT_SANITIZERS "
+                "(supported: Address, Undefined)")
+        endif()
+    endforeach()
+    list(APPEND _sanitizer_flags -fno-omit-frame-pointer)
+    target_compile_options(cppjit PRIVATE ${_sanitizer_flags})
+    target_link_options(cppjit PRIVATE ${_sanitizer_flags})
+endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     target_link_options(cppjit PRIVATE -Wl,-Bsymbolic-functions)
