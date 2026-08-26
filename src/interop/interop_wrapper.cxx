@@ -145,6 +145,12 @@ acquireOrCreateInterpreter(const InterOpPaths& Paths) {
     args.push_back("-resource-dir");
     args.push_back(resourceDir.c_str());
   }
+  // The bundled CppInterOp headers (Dispatch.h) must be in the creation
+  // argv: in CUDA mode every input is also parsed by a device-side
+  // compiler instance that is sealed inside CreateInterpreter, and
+  // Cpp::AddIncludePath after the fact reaches only the host side.
+  const std::string interopInclude = "-I" + Paths.IncludeDir;
+  args.push_back(interopInclude.c_str());
   // CPPJIT_ENABLE_CUDA=1 makes the interpreter a CUDA host/device pair
   // (clang-repl --cuda). CppInterOp detects the toolkit and the live
   // GPU's architecture itself; CPPJIT_CUDA_PATH and CPPJIT_OFFLOAD_ARCH
@@ -168,7 +174,7 @@ acquireOrCreateInterpreter(const InterOpPaths& Paths) {
   return Cpp::CreateInterpreter(args, gpuArgs);
 }
 
-static void configureInterpreter(const InterOpPaths& Paths) {
+static void configureInterpreter() {
   std::set<std::string> bi{g_builtins};
   for (const auto& name : bi) {
     for (const char* a : {"*", "&", "*&", "[]", "*[]"})
@@ -190,7 +196,6 @@ static void configureInterpreter(const InterOpPaths& Paths) {
     Cpp::Process(s.str().c_str());
   }
 
-  Cpp::AddIncludePath(Paths.IncludeDir.c_str());
   Cpp::LoadLibrary("libstdc++", /* lookup= */ true);
 }
 
@@ -257,7 +262,7 @@ extern "C" int LoadCppInterOp() {
       return;
 
     acquireOrCreateInterpreter(Paths);
-    configureInterpreter(Paths);
+    configureInterpreter();
     preloadHeaders();
     defineRuntimeHelpers();
 
