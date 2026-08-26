@@ -214,3 +214,49 @@ class TestCUDA:
         cppjit.gbl.cppjit_cuda_ns.ns_scale[2, 64](dev, n, 7)
         total = cppjit.gbl.cppjit_cuda_sum_free(dev, n)
         assert total == 7 * n * (n - 1) // 2
+
+    def test08_nvrtc_module(self):
+        """Load an nvrtc-compiled module and launch its kernel"""
+
+        import cppjit
+        import cppjit.cuda
+        from pytest import raises
+
+        cppjit.load_library("libnvrtc")
+        cppjit.cppdef("""
+        #include <nvrtc.h>
+
+        std::string cppjit_cuda_nvrtc_ptx() {
+            const char* src = "extern \\"C\\" __global__"
+                              " void nv_scale(int* v, int n, int f) {"
+                              "  int i = blockIdx.x * blockDim.x + threadIdx.x;"
+                              "  if (i < n) v[i] *= f;"
+                              "}";
+            nvrtcProgram prog;
+            if (nvrtcCreateProgram(&prog, src, "nv.cu", 0, nullptr, nullptr))
+                return "";
+            if (nvrtcCompileProgram(prog, 0, nullptr))
+                return "";
+            size_t n = 0;
+            nvrtcGetPTXSize(prog, &n);
+            std::string ptx(n, ' ');
+            nvrtcGetPTX(prog, ptx.data());
+            nvrtcDestroyProgram(&prog);
+            return ptx;
+        }
+        """)
+        ptx = cppjit.gbl.cppjit_cuda_nvrtc_ptx()
+        assert ptx
+
+        mod = cppjit.cuda.load_module(ptx)
+        kern = mod.get_kernel("nv_scale", "int*, int, int")
+        n = 192
+        dev = cppjit.gbl.cppjit_cuda_iota(n)
+        kern[3, 64](dev, n, 5)
+        total = cppjit.gbl.cppjit_cuda_sum_free(dev, n)
+        assert total == 5 * n * (n - 1) // 2
+
+        with raises(TypeError):
+            kern(dev, n, 5)  # a launch config is required
+        with raises(RuntimeError):
+            mod.get_kernel("no_such_kernel")
