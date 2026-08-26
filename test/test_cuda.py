@@ -129,9 +129,7 @@ class TestCUDA:
         out = cppjit.gbl.cppjit_cuda_alloc_ll()
         stream = cppjit.gbl.cppjit_cuda_stream_create()
         shared_bytes = 4 * block
-        cppjit.gbl.cppjit_cuda_block_sum[grid, block, shared_bytes, stream](
-            dev, out, n
-        )
+        cppjit.gbl.cppjit_cuda_block_sum[grid, block, shared_bytes, stream](dev, out, n)
         cppjit.gbl.cppjit_cuda_stream_sync_destroy(stream)
         assert cppjit.gbl.cppjit_cuda_read_free_ll(out) == n * (n - 1) // 2
         cppjit.gbl.cppjit_cuda_sum_free(dev, n)
@@ -196,3 +194,23 @@ class TestCUDA:
         cppjit.gbl.cppjit_cuda_add_one[2, 64](dev, n)
         total = cppjit.gbl.cppjit_cuda_sum_free(dev, n)
         assert total == n * (n - 1) // 2 + n
+
+    def test07_namespaced_kernel(self):
+        """Kernels defined inside a namespace launch through their scope"""
+
+        import cppjit
+
+        cppjit.cppdef("""
+        namespace cppjit_cuda_ns {
+        __global__ void ns_scale(int* v, int n, int f) {
+            int i = blockIdx.x * blockDim.x + threadIdx.x;
+            if (i < n) v[i] *= f;
+        }
+        }
+        """)
+
+        n = 128
+        dev = cppjit.gbl.cppjit_cuda_iota(n)
+        cppjit.gbl.cppjit_cuda_ns.ns_scale[2, 64](dev, n, 7)
+        total = cppjit.gbl.cppjit_cuda_sum_free(dev, n)
+        assert total == 7 * n * (n - 1) // 2
