@@ -136,7 +136,48 @@ class TestCUDA:
         assert cppjit.gbl.cppjit_cuda_read_free_ll(out) == n * (n - 1) // 2
         cppjit.gbl.cppjit_cuda_sum_free(dev, n)
 
-    def test05_include_path_reaches_device(self, tmp_path):
+    @mark.xfail(
+        reason="libdevice is not linked into incremental device code "
+        "(clang bug, fixed on llvm main); math kernels silently no-op "
+        "with the launch error visible only via cudaGetLastError"
+    )
+    def test05_device_math(self):
+        """Kernels can call CUDA device math (sinf & co via libdevice)"""
+
+        import cppjit
+
+        cppjit.cppdef("""
+        __global__ void cppjit_cuda_math(float* out) {
+            out[threadIdx.x] = sinf(0.0f) + expf(0.0f);
+        }
+
+        float* cppjit_cuda_alloc_f(int n) {
+            float* p = nullptr;
+            cudaMalloc(&p, n * sizeof(float));
+            cudaMemset(p, 0, n * sizeof(float));
+            return p;
+        }
+
+        float cppjit_cuda_read_free_f(float* p) {
+            float v = 0.0f;
+            cudaDeviceSynchronize();
+            cudaMemcpy(&v, p, sizeof(float), cudaMemcpyDeviceToHost);
+            cudaFree(p);
+            return v;
+        }
+
+        int cppjit_cuda_sticky_err() {
+            cudaDeviceSynchronize();
+            return (int)cudaGetLastError();
+        }
+        """)
+
+        dev = cppjit.gbl.cppjit_cuda_alloc_f(64)
+        cppjit.gbl.cppjit_cuda_math[1, 64](dev)
+        assert cppjit.gbl.cppjit_cuda_sticky_err() == 0
+        assert cppjit.gbl.cppjit_cuda_read_free_f(dev) == 1.0
+
+    def test06_include_path_reaches_device(self, tmp_path):
         """add_include_path is visible to the device-side parse"""
 
         import cppjit
