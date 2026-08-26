@@ -396,10 +396,20 @@ static PyObject* meta_getattro(PyObject* pyclass, PyObject* pyname) {
           overloads.push_back(new CPPFunction(scope, method));
         }
 
+        // CUDA kernels take a launch config through the subscript syntax
+        // kern[grid, block](...), which only TemplateProxy provides.
+        bool isCUDAKernel = false;
+        if (interop::IsCUDAEnabled())
+          for (auto method : methods)
+            if (interop::IsCUDAFunction(method)) {
+              isCUDAKernel = true;
+              break;
+            }
+
         // Note: can't re-use Utility::AddClass here, as there's the risk of
         // a recursive call. Simply add method directly, as we're guaranteed
         // that it doesn't exist yet.
-        if (interop::ExistsMethodTemplate(scope, name))
+        if (interop::ExistsMethodTemplate(scope, name) || isCUDAKernel)
           attr = add_template(pyclass, name, &overloads);
         else
           attr = (PyObject*)CPPOverload_New(name, overloads);

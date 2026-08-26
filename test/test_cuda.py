@@ -62,7 +62,81 @@ class TestCUDA:
         total = cppjit.gbl.cppjit_cuda_sum_free(dev, n)
         assert total == 3 * n * (n - 1) // 2
 
-    def test03_include_path_reaches_device(self, tmp_path):
+    def test03_launch_config_forms(self):
+        """dim3 tuples and dynamic grid sizes launch without recompiling"""
+
+        import cppjit
+
+        n = 300  # deliberately not a multiple of the block size
+        block = 128
+        grid = (n + block - 1) // block
+        dev = cppjit.gbl.cppjit_cuda_iota(n)
+        cppjit.gbl.cppjit_cuda_scale[(grid, 1, 1), (block, 1)](dev, n, 2)
+        cppjit.gbl.cppjit_cuda_scale[grid, block, 0](dev, n, 3)
+        cppjit.gbl.cppjit_cuda_scale[grid, block, 0, 0](dev, n, 5)
+        total = cppjit.gbl.cppjit_cuda_sum_free(dev, n)
+        assert total == 30 * n * (n - 1) // 2
+
+    def test04_shared_memory_and_stream(self):
+        """launch with dynamic shared memory on an explicit stream"""
+
+        import cppjit
+
+        cppjit.cppdef("""
+        __global__ void cppjit_cuda_block_sum(const int* v, long long* out,
+                                              int n) {
+            extern __shared__ int buf[];
+            int i = blockIdx.x * blockDim.x + threadIdx.x;
+            buf[threadIdx.x] = i < n ? v[i] : 0;
+            __syncthreads();
+            if (threadIdx.x == 0) {
+                long long s = 0;
+                for (int j = 0; j < blockDim.x; j++) s += buf[j];
+                atomicAdd((unsigned long long*)out, (unsigned long long)s);
+            }
+        }
+
+        long long* cppjit_cuda_alloc_ll() {
+            long long* p = nullptr;
+            cudaMalloc(&p, sizeof(long long));
+            cudaMemset(p, 0, sizeof(long long));
+            return p;
+        }
+
+        long long cppjit_cuda_read_free_ll(long long* p) {
+            long long v = 0;
+            cudaDeviceSynchronize();
+            cudaMemcpy(&v, p, sizeof(long long), cudaMemcpyDeviceToHost);
+            cudaFree(p);
+            return v;
+        }
+
+        unsigned long long cppjit_cuda_stream_create() {
+            cudaStream_t s = nullptr;
+            cudaStreamCreate(&s);
+            return (unsigned long long)s;
+        }
+
+        void cppjit_cuda_stream_sync_destroy(unsigned long long s) {
+            cudaStreamSynchronize((cudaStream_t)s);
+            cudaStreamDestroy((cudaStream_t)s);
+        }
+        """)
+
+        n, block = 256, 64
+        grid = n // block
+        dev = cppjit.gbl.cppjit_cuda_iota(n)
+        out = cppjit.gbl.cppjit_cuda_alloc_ll()
+        stream = cppjit.gbl.cppjit_cuda_stream_create()
+        shared_bytes = 4 * block
+        cppjit.gbl.cppjit_cuda_block_sum[grid, block, shared_bytes, stream](
+            dev, out, n
+        )
+        cppjit.gbl.cppjit_cuda_stream_sync_destroy(stream)
+        assert cppjit.gbl.cppjit_cuda_read_free_ll(out) == n * (n - 1) // 2
+        cppjit.gbl.cppjit_cuda_sum_free(dev, n)
+
+    def test05_include_path_reaches_device(self, tmp_path):
         """add_include_path is visible to the device-side parse"""
 
         import cppjit

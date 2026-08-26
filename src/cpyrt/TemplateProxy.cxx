@@ -27,7 +27,8 @@ static inline std::string targs2str(TemplateProxy* pytmpl) {
 //----------------------------------------------------------------------------
 TemplateInfo::TemplateInfo()
     : fPyClass(nullptr), fNonTemplated(nullptr), fTemplated(nullptr),
-      fLowPriority(nullptr), fDoc(nullptr) {
+      fLowPriority(nullptr), fIsCUDAKernel(-1), fCUDALauncherName(nullptr),
+      fDoc(nullptr) {
   /* empty */
 }
 
@@ -35,6 +36,7 @@ TemplateInfo::TemplateInfo()
 TemplateInfo::~TemplateInfo() {
   Py_XDECREF(fPyClass);
 
+  Py_XDECREF(fCUDALauncherName);
   Py_XDECREF(fDoc);
   Py_DECREF(fNonTemplated);
   Py_DECREF(fTemplated);
@@ -331,6 +333,7 @@ static TemplateProxy* tpp_new(PyTypeObject*, PyObject*, PyObject*) {
   TemplateProxy* pytmpl = PyObject_GC_New(TemplateProxy, &TemplateProxy_Type);
   pytmpl->fSelf = nullptr;
   pytmpl->fTemplateArgs = nullptr;
+  pytmpl->fLaunchConfig = nullptr;
   pytmpl->fWeakrefList = nullptr;
   new (&pytmpl->fTI) TP_TInfo_t{};
   pytmpl->fTI = std::make_shared<TemplateInfo>();
@@ -363,6 +366,7 @@ static int tpp_clear(TemplateProxy* pytmpl) {
   // Garbage collector clear of held python member objects.
   Py_CLEAR(pytmpl->fSelf);
   Py_CLEAR(pytmpl->fTemplateArgs);
+  Py_CLEAR(pytmpl->fLaunchConfig);
 
   return 0;
 }
@@ -383,6 +387,7 @@ static int tpp_traverse(TemplateProxy* pytmpl, visitproc visit, void* arg) {
   // Garbage collector traverse of held python member objects.
   Py_VISIT(pytmpl->fSelf);
   Py_VISIT(pytmpl->fTemplateArgs);
+  Py_VISIT(pytmpl->fLaunchConfig);
 
   return 0;
 }
@@ -522,6 +527,131 @@ static inline PyObject* CallMethodImp(TemplateProxy* pytmpl, PyObject*& pymeth,
   return result;
 }
 
+//----------------------------------------------------------------------------
+static bool tpp_is_cuda_kernel(TemplateProxy* pytmpl) {
+  // A proxy launches CUDA kernels iff its name resolves to at least one
+  // __global__ function in its scope. Cached: a kernel definition cannot
+  // be undone in the interpreter.
+  TemplateInfo& ti = *pytmpl->fTI;
+  if (ti.fIsCUDAKernel == -1) {
+    ti.fIsCUDAKernel = 0;
+    if (interop::IsCUDAEnabled() && CPPScope_Check(ti.fPyClass)) {
+      interop::TCppScope_t scope = ((CPPScope*)ti.fPyClass)->fCppType;
+      for (auto method : interop::GetMethodsFromName(scope, ti.fCppName))
+        if (interop::IsCUDAFunction(method)) {
+          ti.fIsCUDAKernel = 1;
+          break;
+        }
+    }
+  }
+  return ti.fIsCUDAKernel == 1;
+}
+
+//----------------------------------------------------------------------------
+static bool tpp_cuda_dims(PyObject* spec, unsigned long long dims[3],
+                          const char* what) {
+  // One grid/block spec: an int or a sequence of up to three ints.
+  dims[0] = dims[1] = dims[2] = 1;
+  Py_ssize_t n = 1;
+  PyObject* seq = nullptr;
+  if (!PyIndex_Check(spec)) {
+    seq = PySequence_Fast(spec, "CUDA launch dimensions must be an int or "
+                                "a sequence of up to three ints");
+    if (!seq)
+      return false;
+    n = PySequence_Fast_GET_SIZE(seq);
+    if (n < 1 || 3 < n) {
+      Py_DECREF(seq);
+      PyErr_Format(PyExc_ValueError, "%s takes one to three dimensions", what);
+      return false;
+    }
+  }
+  for (Py_ssize_t i = 0; i < n; ++i) {
+    PyObject* item = seq ? PySequence_Fast_GET_ITEM(seq, i) : spec;
+    unsigned long long v = PyLong_AsUnsignedLongLong(item);
+    if (v == (unsigned long long)-1 && PyErr_Occurred()) {
+      Py_XDECREF(seq);
+      return false;
+    }
+    if (v == 0) {
+      Py_XDECREF(seq);
+      PyErr_Format(PyExc_ValueError, "%s dimensions must be positive", what);
+      return false;
+    }
+    dims[i] = v;
+  }
+  Py_XDECREF(seq);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+static PyObject* tpp_cuda_launch_config(PyObject* args) {
+  // The subscript key of kern[grid, block(, shared_bytes(, stream))],
+  // normalized to the launcher's eight leading scalars.
+  PyObject* items[4];
+  Py_ssize_t n = 1;
+  if (PyTuple_Check(args)) {
+    n = PyTuple_GET_SIZE(args);
+    for (Py_ssize_t i = 0; i < n && i < 4; ++i)
+      items[i] = PyTuple_GET_ITEM(args, i);
+  } else {
+    items[0] = args;
+  }
+  if (n < 2 || 4 < n) {
+    PyErr_SetString(PyExc_TypeError, "CUDA kernels take a launch config: "
+                                     "[grid, block(, shared_bytes(, stream))]");
+    return nullptr;
+  }
+
+  unsigned long long dims[8] = {1, 1, 1, 1, 1, 1, 0, 0};
+  if (!tpp_cuda_dims(items[0], dims, "grid") ||
+      !tpp_cuda_dims(items[1], dims + 3, "block"))
+    return nullptr;
+  for (Py_ssize_t i = 2; i < n; ++i) {
+    dims[i + 4] = PyLong_AsUnsignedLongLong(items[i]);
+    if (dims[i + 4] == (unsigned long long)-1 && PyErr_Occurred())
+      return nullptr;
+  }
+
+  PyObject* config = PyTuple_New(8);
+  for (int i = 0; i < 8; ++i)
+    PyTuple_SET_ITEM(config, i, PyLong_FromUnsignedLongLong(dims[i]));
+  return config;
+}
+
+//----------------------------------------------------------------------------
+static PyObject* tpp_cuda_launch(TemplateProxy* pytmpl, PyObject* const* args,
+                                 size_t nargsf, PyObject* kwds) {
+  // Dispatch to the runtime launcher AdaptCUDAFunction generated in the
+  // kernel's scope, with the bound launch config prepended.
+  if (kwds && PyTuple_GET_SIZE(kwds)) {
+    PyErr_SetString(PyExc_TypeError,
+                    "CUDA kernel launches take no keyword arguments");
+    return nullptr;
+  }
+  TemplateInfo& ti = *pytmpl->fTI;
+  if (!ti.fCUDALauncherName)
+    ti.fCUDALauncherName = cpyrt_PyText_InternFromString(
+        (interop::kCUDALaunchPrefix + ti.fCppName).c_str());
+
+  PyObject* launcher = PyObject_GetAttr(ti.fPyClass, ti.fCUDALauncherName);
+  if (!launcher)
+    return nullptr;
+
+  Py_ssize_t argc = cpyrt_PyArgs_GET_SIZE(args, nargsf);
+  Py_ssize_t nconf = PyTuple_GET_SIZE(pytmpl->fLaunchConfig);
+  std::vector<PyObject*> largs(nconf + argc);
+  for (Py_ssize_t i = 0; i < nconf; ++i)
+    largs[i] = PyTuple_GET_ITEM(pytmpl->fLaunchConfig, i);
+  for (Py_ssize_t i = 0; i < argc; ++i)
+    largs[nconf + i] = args[i];
+
+  PyObject* result =
+      cpyrt_PyObject_Call(launcher, largs.data(), nconf + argc, kwds);
+  Py_DECREF(launcher);
+  return result;
+}
+
 static PyObject* tpp_vectorcall(TemplateProxy* pytmpl, PyObject* const* args,
                                 size_t nargsf, PyObject* kwds) {
   // Dispatcher to the actual member method, several uses possible; in order:
@@ -551,6 +681,10 @@ static PyObject* tpp_vectorcall(TemplateProxy* pytmpl, PyObject* const* args,
   //
 
   // TODO: should previously instantiated templates be considered first?
+
+  // case 0: CUDA kernel with a subscript-bound launch config
+  if (pytmpl->fLaunchConfig)
+    return tpp_cuda_launch(pytmpl, args, nargsf, kwds);
 
   PyObject *pymeth = nullptr, *result = nullptr;
 
@@ -730,6 +864,9 @@ static TemplateProxy* tpp_descr_get(TemplateProxy* pytmpl, PyObject* pyobj,
   Py_XINCREF(pytmpl->fTemplateArgs);
   newPyTmpl->fTemplateArgs = pytmpl->fTemplateArgs;
 
+  Py_XINCREF(pytmpl->fLaunchConfig);
+  newPyTmpl->fLaunchConfig = pytmpl->fLaunchConfig;
+
   // copy name, class, etc. pointers
   new (&newPyTmpl->fTI) std::shared_ptr<TemplateInfo>{pytmpl->fTI};
 
@@ -740,6 +877,18 @@ static TemplateProxy* tpp_descr_get(TemplateProxy* pytmpl, PyObject* pyobj,
 
 //----------------------------------------------------------------------------
 static PyObject* tpp_subscript(TemplateProxy* pytmpl, PyObject* args) {
+  // CUDA kernels take the launch config through the subscript; bind it
+  // for the call to dispatch to the runtime launcher.
+  if (tpp_is_cuda_kernel(pytmpl)) {
+    PyObject* config = tpp_cuda_launch_config(args);
+    if (!config)
+      return nullptr;
+    TemplateProxy* boundKernel = tpp_descr_get(pytmpl, pytmpl->fSelf, nullptr);
+    Py_XDECREF(boundKernel->fLaunchConfig);
+    boundKernel->fLaunchConfig = config;
+    return (PyObject*)boundKernel;
+  }
+
   // Explicit template member lookup/instantiation; works by re-bounding. This
   // method can not cache overloads as instantiations need not be unique for the
   // argument types due to template specializations.
@@ -782,6 +931,7 @@ void TemplateProxy::Set(const std::string& cppname, const std::string& pyname,
   // Initialize the proxy for the given 'pyclass.'
   fSelf = nullptr;
   fTemplateArgs = nullptr;
+  fLaunchConfig = nullptr;
 
   fTI->fCppName = cppname;
   Py_XINCREF(pyclass);

@@ -341,6 +341,10 @@ RPY_EXPORTED
 bool IsExplicit(TCppMethod_t method);
 
 // CUDA mode -------------------------------------------------------------------
+// Name prefix of the launchers AdaptCUDAFunction generates; the bindings
+// dispatch kernel[grid, block](...) calls to "<prefix><kernel name>" in
+// the kernel's scope.
+inline constexpr const char* kCUDALaunchPrefix = "__cppjit_launch_";
 RPY_EXPORTED
 bool IsCUDAEnabled();
 RPY_EXPORTED

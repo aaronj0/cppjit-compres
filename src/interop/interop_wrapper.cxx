@@ -1671,27 +1671,51 @@ bool interop::IsCUDAFunction(interop::TCppMethod_t method) {
 }
 
 // A __global__ kernel cannot be called from the host directly; define a
-// same-named launcher template so python spells the launch configuration
-// as explicit template arguments: gbl.kern[grid, block](args...).
+// launcher in the kernel's scope that takes the launch configuration as
+// leading runtime arguments, so one JIT compilation serves every
+// configuration. The bindings dispatch gbl.kern[grid, block](args...) to
+// it (see TemplateProxy's launch-config subscript).
 void interop::AdaptCUDAFunction(interop::TCppMethod_t fn) {
   std::lock_guard<std::recursive_mutex> Lock(InterOpMutex);
 
-  std::string fn_name = Cpp::GetQualifiedCompleteName(TCppScope_t(fn.data));
-  std::string signature = interop::GetMethodSignature(fn, true);
+  TCppScope_t scope = TCppScope_t(fn.data);
+  std::string fn_name = Cpp::GetQualifiedCompleteName(scope);
+  const std::string launcher = kCUDALaunchPrefix + Cpp::GetName(scope);
 
-  std::ostringstream call;
-  call << "(";
+  // Proxies can be rebuilt; the launcher persists in the interpreter.
+  if (Cpp::GetNamed(launcher.c_str(), Cpp::GetParentScope(scope)))
+    return;
+
+  std::ostringstream params, call;
+  params << "unsigned __gx, unsigned __gy, unsigned __gz, "
+         << "unsigned __bx, unsigned __by, unsigned __bz, "
+         << "unsigned long long __shmem, unsigned long long __stream";
   for (size_t i = 0, n = interop::GetMethodNumArgs(fn); i < n; i++) {
-    call << interop::GetMethodArgName(fn, i);
-    if (i != n - 1)
-      call << ", ";
+    std::string arg = interop::GetMethodArgName(fn, i);
+    if (arg.empty())
+      arg = "__a" + std::to_string(i);
+    params << ", " << interop::GetMethodArgTypeAsString(fn, i) << " " << arg;
+    call << (i ? ", " : "") << arg;
   }
-  call << ")";
+
+  // The enclosing namespace, when there is one, must wrap the launcher
+  // so scope-local name lookup on the python side finds it.
+  const std::string ns =
+      fn_name.size() > Cpp::GetName(scope).size()
+          ? fn_name.substr(0, fn_name.size() - Cpp::GetName(scope).size() - 2)
+          : std::string();
 
   std::ostringstream code;
-  code << "template <int _Grid, int _Block>\n"
-       << "auto " << fn_name << signature << " { return " << fn_name
-       << "<<<_Grid, _Block>>>" << call.str() << "; }\n";
+  if (!ns.empty())
+    code << "namespace " << ns << " {\n";
+  code << "void " << launcher << "(" << params.str() << ") {\n"
+       << "  ::" << fn_name
+       << "<<<dim3(__gx, __gy, __gz), dim3(__bx, __by, __bz), "
+          "(size_t)__shmem, (cudaStream_t)__stream>>>("
+       << call.str() << ");\n"
+       << "}\n";
+  if (!ns.empty())
+    code << "}\n";
   if (!interop::Compile(code.str().c_str()))
     std::cerr << "[cppjit-backend] Failed to define a CUDA launcher for "
               << fn_name << std::endl;

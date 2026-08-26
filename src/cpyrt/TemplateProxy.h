@@ -38,6 +38,9 @@ public:
   CPPOverload* fTemplated;    // holder for templated overloads
   CPPOverload* fLowPriority;  // low priority overloads such as void*/void**
 
+  int fIsCUDAKernel;           // tri-state: -1 unknown, 0 no, 1 yes
+  PyObject* fCUDALauncherName; // interned launcher attribute name
+
   TP_DispatchMap_t fDispatchMap;
   PyObject* fDoc;
 };
@@ -55,6 +58,7 @@ private:
 public: // public, as the python C-API works with C structs
   PyObject_HEAD PyObject* fSelf; // must be first (same layout as CPPOverload)
   PyObject* fTemplateArgs;
+  PyObject* fLaunchConfig; // CUDA kernels: subscript-bound launch config
   PyObject* fWeakrefList;
   vectorcallfunc fVectorCall;
   TP_TInfo_t fTI;
