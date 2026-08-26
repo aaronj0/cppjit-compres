@@ -161,6 +161,15 @@ acquireOrCreateInterpreter(const InterOpPaths& Paths) {
     if (*enable && std::strcmp(enable, "0") != 0) {
       gpuArgs.push_back("--cuda");
       if (const char* p = std::getenv("CPPJIT_CUDA_PATH")) {
+        // A wrong toolkit path is only diagnosed hundreds of header
+        // errors later, so refuse it up front.
+        if (!std::filesystem::exists(std::string(p) +
+                                     "/include/cuda_runtime.h")) {
+          std::cerr << "[cppjit-backend] CPPJIT_CUDA_PATH (" << p
+                    << ") is not a CUDA toolkit: missing "
+                       "include/cuda_runtime.h\n";
+          return nullptr;
+        }
         cudaPath = std::string("--cuda-path=") + p;
         gpuArgs.push_back(cudaPath.c_str());
       }
@@ -261,7 +270,10 @@ extern "C" int LoadCppInterOp() {
     if (!loadDispatchAPI(Paths))
       return;
 
-    acquireOrCreateInterpreter(Paths);
+    if (!acquireOrCreateInterpreter(Paths)) {
+      std::cerr << "[cppjit-backend] Failed to create the interpreter\n";
+      return;
+    }
     configureInterpreter();
     preloadHeaders();
     defineRuntimeHelpers();
