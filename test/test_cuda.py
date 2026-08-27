@@ -261,3 +261,71 @@ class TestCUDA:
             kern(dev, n, 5)  # a launch config is required
         with raises(RuntimeError):
             mod.get_kernel("no_such_kernel")
+
+    def test09_stream_protocol(self):
+        """The stream slot accepts __cuda_stream__ objects"""
+
+        import cppjit
+        from pytest import raises
+
+        cppjit.cppdef("""
+        unsigned long long cppjit_cuda_sp_stream_create() {
+            cudaStream_t s = nullptr;
+            cudaStreamCreate(&s);
+            return (unsigned long long)s;
+        }
+        void cppjit_cuda_sp_stream_sync_destroy(unsigned long long s) {
+            cudaStreamSynchronize((cudaStream_t)s);
+            cudaStreamDestroy((cudaStream_t)s);
+        }
+        """)
+        handle = cppjit.gbl.cppjit_cuda_sp_stream_create()
+
+        class MethodStream:
+            def __cuda_stream__(self):
+                return (0, handle)
+
+        class TupleStream:
+            pass
+
+        tuple_stream = TupleStream()
+        tuple_stream.__cuda_stream__ = (0, handle)
+
+        n = 128
+        dev = cppjit.gbl.cppjit_cuda_iota(n)
+        cppjit.gbl.cppjit_cuda_scale[2, 64, 0, MethodStream()](dev, n, 3)
+        cppjit.gbl.cppjit_cuda_scale[2, 64, 0, tuple_stream](dev, n, 5)
+        cppjit.gbl.cppjit_cuda_sp_stream_sync_destroy(handle)
+        total = cppjit.gbl.cppjit_cuda_sum_free(dev, n)
+        assert total == 15 * n * (n - 1) // 2
+
+        class WrongVersion:
+            def __cuda_stream__(self):
+                return (1, 0)
+
+        with raises(TypeError):
+            cppjit.gbl.cppjit_cuda_scale[2, 64, 0, object()]
+        with raises(TypeError):
+            cppjit.gbl.cppjit_cuda_scale[2, 64, 0, WrongVersion()]
+
+    def test10_stream_protocol_python_surface(self):
+        """cppjit.cuda mirrors the __cuda_stream__ acceptance"""
+
+        import cppjit.cuda
+        from pytest import raises
+
+        class MethodStream:
+            def __cuda_stream__(self):
+                return (0, 1234)
+
+        cfg = cppjit.cuda._launch_config((2, 64, 0, MethodStream()))
+        assert cfg == (2, 1, 1, 64, 1, 1, 0, 1234)
+
+        class WrongVersion:
+            def __cuda_stream__(self):
+                return (2, 0)
+
+        with raises(TypeError):
+            cppjit.cuda._launch_config((2, 64, 0, object()))
+        with raises(TypeError):
+            cppjit.cuda._launch_config((2, 64, 0, WrongVersion()))

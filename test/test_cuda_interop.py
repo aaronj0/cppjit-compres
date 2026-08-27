@@ -25,6 +25,43 @@ def cppjit_device_count():
     return cppjit.gbl.cppjit_cuda_interop_device_count()
 
 
+def ensure_interop_kernels():
+    """Shared device-side fixture: a scale kernel plus iota/readback."""
+    import cppjit
+
+    if hasattr(cppjit.gbl, "cppjit_cuda_interop_iota"):
+        return
+    cppjit.cppdef("""
+    #include <cuda_runtime.h>
+
+    __global__ void cppjit_cuda_interop_scale(int* v, int n, int f) {
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        if (i < n) v[i] *= f;
+    }
+
+    int* cppjit_cuda_interop_iota(int n) {
+        int* host = new int[n];
+        for (int i = 0; i < n; i++) host[i] = i;
+        int* dev = nullptr;
+        cudaMalloc(&dev, n * sizeof(int));
+        cudaMemcpy(dev, host, n * sizeof(int), cudaMemcpyHostToDevice);
+        delete[] host;
+        return dev;
+    }
+
+    long long cppjit_cuda_interop_sum_free(int* dev, int n) {
+        int* host = new int[n];
+        cudaDeviceSynchronize();
+        cudaMemcpy(host, dev, n * sizeof(int), cudaMemcpyDeviceToHost);
+        cudaFree(dev);
+        long long s = 0;
+        for (int i = 0; i < n; i++) s += host[i];
+        delete[] host;
+        return s;
+    }
+    """)
+
+
 @mark.skipif(not HAS_CUPY, reason="cupy not installed")
 class TestCuPyInterop:
     def test01_same_device_visible(self):
@@ -60,3 +97,21 @@ class TestCudaCoreInterop:
         if n is None:
             n = system.get_num_devices()  # 1.1.x
         assert n == cppjit_device_count() > 0
+
+    def test02_stream_protocol_launch(self):
+        """JIT'd kernels launch on a cuda.core Stream via __cuda_stream__"""
+
+        import cppjit
+        from cuda.core import Device
+
+        dev = Device()
+        dev.set_current()
+        stream = dev.create_stream()
+
+        ensure_interop_kernels()
+        n = 192
+        buf = cppjit.gbl.cppjit_cuda_interop_iota(n)
+        cppjit.gbl.cppjit_cuda_interop_scale[3, 64, 0, stream](buf, n, 7)
+        stream.sync()
+        total = cppjit.gbl.cppjit_cuda_interop_sum_free(buf, n)
+        assert total == 7 * n * (n - 1) // 2
