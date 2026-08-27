@@ -329,3 +329,62 @@ class TestCUDA:
             cppjit.cuda._launch_config((2, 64, 0, object()))
         with raises(TypeError):
             cppjit.cuda._launch_config((2, 64, 0, WrongVersion()))
+
+    def test11_graph_capture(self):
+        """python-driven launches record into a CUDA graph and replay"""
+
+        import cppjit
+
+        cppjit.cppdef("""
+        unsigned long long cppjit_cuda_gc_stream() {
+            cudaStream_t s = nullptr;
+            cudaStreamCreate(&s);
+            return (unsigned long long)s;
+        }
+        void cppjit_cuda_gc_begin(unsigned long long s) {
+            cudaStreamBeginCapture((cudaStream_t)s,
+                                   cudaStreamCaptureModeGlobal);
+        }
+        unsigned long long cppjit_cuda_gc_end(unsigned long long s) {
+            cudaGraph_t g = nullptr;
+            cudaStreamEndCapture((cudaStream_t)s, &g);
+            return (unsigned long long)g;
+        }
+        unsigned long long cppjit_cuda_gc_instantiate(unsigned long long g) {
+            cudaGraphExec_t e = nullptr;
+            cudaGraphInstantiate(&e, (cudaGraph_t)g, 0);
+            return (unsigned long long)e;
+        }
+        int cppjit_cuda_gc_replay(unsigned long long e, unsigned long long s,
+                                  int reps) {
+            for (int i = 0; i < reps; i++)
+                cudaGraphLaunch((cudaGraphExec_t)e, (cudaStream_t)s);
+            cudaStreamSynchronize((cudaStream_t)s);
+            return (int)cudaGetLastError();
+        }
+        void cppjit_cuda_gc_destroy(unsigned long long e, unsigned long long g,
+                                    unsigned long long s) {
+            cudaGraphExecDestroy((cudaGraphExec_t)e);
+            cudaGraphDestroy((cudaGraph_t)g);
+            cudaStreamDestroy((cudaStream_t)s);
+        }
+        """)
+
+        n = 128
+        dev = cppjit.gbl.cppjit_cuda_iota(n)
+        stream = cppjit.gbl.cppjit_cuda_gc_stream()
+        kern = cppjit.gbl.cppjit_cuda_scale[2, 64, 0, stream]
+        # a first launch outside the capture window loads the module (the
+        # deferred driver JIT is not capture-safe); f=1 leaves values alone
+        cppjit.gbl.cppjit_cuda_scale[2, 64, 0, stream](dev, n, 1)
+
+        cppjit.gbl.cppjit_cuda_gc_begin(stream)
+        for _ in range(3):
+            kern(dev, n, 2)  # -> one replay multiplies by 8
+        graph = cppjit.gbl.cppjit_cuda_gc_end(stream)
+        gexec = cppjit.gbl.cppjit_cuda_gc_instantiate(graph)
+        assert cppjit.gbl.cppjit_cuda_gc_replay(gexec, stream, 4) == 0
+        cppjit.gbl.cppjit_cuda_gc_destroy(gexec, graph, stream)
+
+        total = cppjit.gbl.cppjit_cuda_sum_free(dev, n)
+        assert total == 2**12 * n * (n - 1) // 2

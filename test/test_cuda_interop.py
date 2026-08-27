@@ -115,3 +115,34 @@ class TestCudaCoreInterop:
         stream.sync()
         total = cppjit.gbl.cppjit_cuda_interop_sum_free(buf, n)
         assert total == 7 * n * (n - 1) // 2
+
+    def test03_graph_builder_capture(self):
+        """JIT'd kernels record into a cuda.core GraphBuilder and replay"""
+
+        import cppjit
+        from cuda.core import Device
+
+        dev = Device()
+        dev.set_current()
+
+        ensure_interop_kernels()
+        n = 128
+        buf = cppjit.gbl.cppjit_cuda_interop_iota(n)
+        # module load (deferred driver JIT) happens outside the capture;
+        # f=1 leaves the values alone
+        cppjit.gbl.cppjit_cuda_interop_scale[2, 64](buf, n, 1)
+
+        gb = dev.create_graph_builder().begin_building()
+        for _ in range(2):
+            cppjit.gbl.cppjit_cuda_interop_scale[2, 64, 0, gb](buf, n, 2)
+        graph = gb.end_building().complete()
+
+        stream = dev.create_stream()
+        graph.upload(stream)
+        for _ in range(3):
+            graph.launch(stream)  # each replay multiplies by 4
+        stream.sync()
+        graph.close()
+
+        total = cppjit.gbl.cppjit_cuda_interop_sum_free(buf, n)
+        assert total == 4**3 * n * (n - 1) // 2
