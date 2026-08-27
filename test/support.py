@@ -104,3 +104,20 @@ IS_CPP23 = (
 )
 IS_VALGRIND = True if os.getenv("IS_VALGRIND") else False
 IS_CUDA = os.getenv("CPPJIT_ENABLE_CUDA", "0") not in ("", "0")
+
+
+def _has_module(name):
+    # find_spec probes installability without importing the package
+    # (importing torch/cupy at collection time costs seconds).
+    from importlib.util import find_spec
+
+    try:
+        return find_spec(name) is not None
+    except (ImportError, ValueError):
+        return False
+
+
+HAS_CUPY = _has_module("cupy")
+HAS_TORCH = _has_module("torch")
+HAS_CUDA_CORE = _has_module("cuda.core")
+HAS_CUDA_COMPUTE = _has_module("cuda.compute")

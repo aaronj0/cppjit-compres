@@ -1,0 +1,8 @@
+# Optional dependencies for the CUDA interop tests (test_cuda_interop.py);
+# the suite skips per-package when absent. Builds must match the CUDA major
+# the interpreter runs with (cppjit's CI and dev hosts: CUDA 12.x).
+cupy-cuda12x
+cuda-core[cu12]
+cuda-cccl
+# torch is also exercised when present; install a CUDA 12.x build manually
+# (the wheel is too large to pull in by default).
