@@ -135,9 +135,10 @@ class TestCUDA:
         cppjit.gbl.cppjit_cuda_sum_free(dev, n)
 
     @mark.xfail(
-        reason="libdevice is not linked into incremental device code "
-        "(clang bug, fixed on llvm main); math kernels silently no-op "
-        "with the launch error visible only via cudaGetLastError"
+        reason="libdevice is not linked into incremental device code; the "
+        "clang fix is pending upstream and no released LLVM carries it; "
+        "math kernels silently no-op with the launch error visible only "
+        "via cudaGetLastError"
     )
     def test05_device_math(self):
         """Kernels can call CUDA device math (sinf & co via libdevice)"""
