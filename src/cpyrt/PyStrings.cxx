@@ -12,6 +12,7 @@ PyObject* cpyrt::PyStrings::gContains = nullptr;
 PyObject* cpyrt::PyStrings::gCopy = nullptr;
 PyObject* cpyrt::PyStrings::gCppBool = nullptr;
 PyObject* cpyrt::PyStrings::gCppName = nullptr;
+PyObject* cpyrt::PyStrings::gCudaStream = nullptr;
 PyObject* cpyrt::PyStrings::gAnnotations = nullptr;
 PyObject* cpyrt::PyStrings::gCastCpp = nullptr;
 PyObject* cpyrt::PyStrings::gCType = nullptr;
@@ -94,6 +95,7 @@ bool cpyrt::CreatePyStrings() {
   CPPJIT_INITIALIZE_STRING(gCopy, copy);
   CPPJIT_INITIALIZE_STRING(gCppBool, __cpp_bool__);
   CPPJIT_INITIALIZE_STRING(gCppName, __cpp_name__);
+  CPPJIT_INITIALIZE_STRING(gCudaStream, __cuda_stream__);
   CPPJIT_INITIALIZE_STRING(gAnnotations, __annotations__);
   CPPJIT_INITIALIZE_STRING(gCastCpp, __cast_cpp__);
   CPPJIT_INITIALIZE_STRING(gCType, __ctype__);
@@ -180,6 +182,8 @@ PyObject* cpyrt::DestroyPyStrings() {
   PyStrings::gCppBool = nullptr;
   Py_DECREF(PyStrings::gCppName);
   PyStrings::gCppName = nullptr;
+  Py_DECREF(PyStrings::gCudaStream);
+  PyStrings::gCudaStream = nullptr;
   Py_DECREF(PyStrings::gAnnotations);
   PyStrings::gAnnotations = nullptr;
   Py_DECREF(PyStrings::gCType);

@@ -585,6 +585,45 @@ static bool tpp_cuda_dims(PyObject* spec, unsigned long long dims[3],
 }
 
 //----------------------------------------------------------------------------
+static bool tpp_cuda_stream_arg(PyObject* obj, unsigned long long& stream) {
+  // The stream slot also takes objects speaking the __cuda_stream__
+  // protocol (cuda.core, torch, cupy): (version, handle) with version 0,
+  // provided as a method or as an already-built tuple attribute.
+  PyObject* proto = PyObject_GetAttr(obj, PyStrings::gCudaStream);
+  if (!proto) {
+    PyErr_Clear();
+    PyErr_SetString(PyExc_TypeError,
+                    "the CUDA launch stream must be an int handle or "
+                    "provide __cuda_stream__");
+    return false;
+  }
+  PyObject* info = proto;
+  if (!PyTuple_Check(proto)) {
+    info = PyObject_CallObject(proto, nullptr);
+    Py_DECREF(proto);
+    if (!info)
+      return false;
+  }
+  if (!PyTuple_Check(info) || PyTuple_GET_SIZE(info) != 2) {
+    Py_DECREF(info);
+    PyErr_SetString(PyExc_TypeError,
+                    "__cuda_stream__ must provide (version, handle)");
+    return false;
+  }
+  long version = PyLong_AsLong(PyTuple_GET_ITEM(info, 0));
+  if (version != 0) {
+    Py_DECREF(info);
+    if (!PyErr_Occurred())
+      PyErr_Format(PyExc_TypeError,
+                   "unsupported __cuda_stream__ protocol version %ld", version);
+    return false;
+  }
+  stream = PyLong_AsUnsignedLongLong(PyTuple_GET_ITEM(info, 1));
+  Py_DECREF(info);
+  return !(stream == (unsigned long long)-1 && PyErr_Occurred());
+}
+
+//----------------------------------------------------------------------------
 static PyObject* tpp_cuda_launch_config(PyObject* args) {
   // The subscript key of kern[grid, block(, shared_bytes(, stream))],
   // normalized to the launcher's eight leading scalars.
@@ -608,6 +647,11 @@ static PyObject* tpp_cuda_launch_config(PyObject* args) {
       !tpp_cuda_dims(items[1], dims + 3, "block"))
     return nullptr;
   for (Py_ssize_t i = 2; i < n; ++i) {
+    if (i == 3 && !PyIndex_Check(items[i])) {
+      if (!tpp_cuda_stream_arg(items[i], dims[7]))
+        return nullptr;
+      continue;
+    }
     dims[i + 4] = PyLong_AsUnsignedLongLong(items[i]);
     if (dims[i + 4] == (unsigned long long)-1 && PyErr_Occurred())
       return nullptr;

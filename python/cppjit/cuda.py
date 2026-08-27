@@ -153,12 +153,31 @@ def _dims(spec, what):
     return tuple(seq) + (1,) * (3 - len(seq))
 
 
+def _stream_handle(spec):
+    """The stream slot: an int handle or a __cuda_stream__ object."""
+    if isinstance(spec, int):
+        return spec
+    proto = getattr(spec, "__cuda_stream__", None)
+    if proto is None:
+        raise TypeError(
+            "the CUDA launch stream must be an int handle or provide __cuda_stream__"
+        )
+    info = proto() if callable(proto) else proto
+    try:
+        version, handle = info
+    except (TypeError, ValueError):
+        raise TypeError("__cuda_stream__ must provide (version, handle)") from None
+    if version != 0:
+        raise TypeError(f"unsupported __cuda_stream__ protocol version {version}")
+    return int(handle)
+
+
 def _launch_config(key):
     items = key if isinstance(key, tuple) else (key,)
     if not 2 <= len(items) <= 4:
         raise TypeError(_CONFIG_ERROR)
     shmem = items[2] if len(items) > 2 else 0
-    stream = items[3] if len(items) > 3 else 0
+    stream = _stream_handle(items[3]) if len(items) > 3 else 0
     return _dims(items[0], "grid") + _dims(items[1], "block") + (shmem, stream)
 
 

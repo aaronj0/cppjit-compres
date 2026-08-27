@@ -14,6 +14,7 @@ extern PyObject* gContains;
 extern PyObject* gCopy;
 extern PyObject* gCppBool;
 extern PyObject* gCppName;
+extern PyObject* gCudaStream;
 extern PyObject* gAnnotations;
 extern PyObject* gCastCpp;
 extern PyObject* gCType;
