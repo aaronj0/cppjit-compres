@@ -1,6 +1,8 @@
 # Optional dependencies for the CUDA interop tests (test_cuda_interop.py);
 # the suite skips per-package when absent. Builds must match the CUDA major
-# the interpreter runs with (cppjit's CI and dev hosts: CUDA 12.x).
+# the interpreter runs with (cppjit's CI and dev hosts: CUDA 12.x), and on
+# hosts with several toolkits CUDA_PATH must name the matching one or
+# cupy's own JIT picks up mismatched headers.
 cupy-cuda12x
 cuda-core[cu12]
 cuda-cccl

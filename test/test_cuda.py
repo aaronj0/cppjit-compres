@@ -388,3 +388,50 @@ class TestCUDA:
 
         total = cppjit.gbl.cppjit_cuda_sum_free(dev, n)
         assert total == 2**12 * n * (n - 1) // 2
+
+    def test12_device_views(self):
+        """view() imports device buffers and rejects host memory"""
+
+        import cppjit
+        import cppjit.cuda
+        from pytest import raises
+
+        n = 64
+        dev = cppjit.gbl.cppjit_cuda_iota(n)
+        ptr = int(cppjit.addressof(dev))
+
+        class CAIProducer:
+            def __init__(self, readonly=False, stream=None):
+                self.__cuda_array_interface__ = {
+                    "version": 3,
+                    "shape": (n,),
+                    "typestr": "<i4",
+                    "data": (ptr, readonly),
+                    "strides": None,
+                    "stream": stream,
+                }
+
+        v = cppjit.cuda.view(CAIProducer())
+        assert v.ptr == ptr and v.shape == (n,) and v.typestr == "<i4"
+        assert not v.readonly and v.strides is None
+
+        # readonly propagates and gates mutable parameters
+        ro = cppjit.cuda.view(CAIProducer(readonly=True))
+        assert ro.readonly
+        cppjit.cuda._check_view(ro, "const int*")
+        with raises(TypeError):
+            cppjit.cuda._check_view(ro, "int*")
+        with raises(TypeError):
+            cppjit.cuda._check_view(v, "float*")  # dtype mismatch
+
+        # protocol violations and host memory are rejected
+        with raises(TypeError):
+            cppjit.cuda.view(CAIProducer(stream=0))  # 0 is disallowed
+        with raises(TypeError):
+            cppjit.cuda.view(object())
+        import numpy as np
+
+        with raises(TypeError):  # numpy speaks DLPack, but for host memory
+            cppjit.cuda.view(np.arange(4))
+
+        cppjit.gbl.cppjit_cuda_sum_free(dev, n)
