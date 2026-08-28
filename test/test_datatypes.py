@@ -2683,3 +2683,21 @@ class TestDATATYPES:
         ns.take_schar("e")
         ns.take_int8(101)
         raises(TypeError, ns.take_int8, "e")
+
+
+class TestANONENUM:
+    def test01_anonymous_enum_repeated_access(self):
+        """An anonymous-enum constant keeps its value across accesses"""
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        namespace AnonEnum { struct Holder { enum { kAnon = 42 }; }; }""")
+
+        h = cppjit.gbl.AnonEnum.Holder()
+
+        # the value is computed on the first access and cached; without the
+        # cache later accesses fall through to the data-member converter
+        assert h.kAnon == 42
+        assert h.kAnon == 42
+        assert h.kAnon == 42
