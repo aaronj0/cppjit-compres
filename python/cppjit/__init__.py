@@ -246,7 +246,10 @@ def cppexec(stmt):
             if not errcode.value:
                 errcode.value = 1
 
-    if not errcode == 0:
+    # Process's return code misses run-time failures of a wrapped expression:
+    # the JIT reports those by an exception that cannot always unwind out of
+    # the wrapper frame, leaving the return code at 0.
+    if not errcode == 0 or ("input_line" in err.err and "error" in err.err):
         raise SyntaxError("Failed to parse the given C++ code%s" % err.err)
     elif err.err and err.err[1:] != "\n":
         sys.stderr.write(err.err[1:])
