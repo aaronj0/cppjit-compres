@@ -2602,6 +2602,22 @@ class TestDATATYPES:
         )
         assert len(cls_Ebool0.__dict__["_member_names_"]) == 2
 
+    def test51a_enum_longlong_values(self):
+        """64-bit and negative enumerator values round-trip exactly"""
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        enum class EWide : long long {
+            kNeg  = -1,
+            kMin  = -9223372036854775807LL - 1,
+            kMax  = 9223372036854775807LL,
+        };""")
+
+        assert int(cppjit.gbl.EWide.kNeg) == -1
+        assert int(cppjit.gbl.EWide.kMin) == -9223372036854775808
+        assert int(cppjit.gbl.EWide.kMax) == 9223372036854775807
+
     def test52_8bit_goodness(self):
         import cppjit
 
