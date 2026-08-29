@@ -672,6 +672,34 @@ static bool tpp_cuda_same_stream(unsigned long long a, unsigned long long b) {
 }
 
 //----------------------------------------------------------------------------
+static bool tpp_cuda_is_contiguous(PyObject* strides,
+                                   const std::vector<dim_t>& shape,
+                                   long itemsize) {
+  // A kernel is handed a bare pointer and indexes it densely, so only a
+  // C-contiguous buffer can be passed on: strides run itemsize,
+  // itemsize*shape[n-1], ... from the last dimension backwards.
+  if (!strides || strides == Py_None)
+    return true; // the interfaces spell "dense" as no strides
+  if (!PySequence_Check(strides) ||
+      (size_t)PySequence_Size(strides) != shape.size())
+    return false;
+  dim_t expected = itemsize;
+  for (Py_ssize_t i = (Py_ssize_t)shape.size() - 1; i >= 0; --i) {
+    PyObject* s = PySequence_GetItem(strides, i);
+    dim_t got = s ? PyLong_AsSsize_t(s) : -1;
+    Py_XDECREF(s);
+    if (PyErr_Occurred()) {
+      PyErr_Clear();
+      return false;
+    }
+    if (got != expected)
+      return false;
+    expected *= shape[i];
+  }
+  return true;
+}
+
+//----------------------------------------------------------------------------
 static int tpp_cuda_device_arg(PyObject* obj, unsigned long long stream,
                                PyObject*& out) {
   // Kernels take device memory. Buffers offered through the CUDA array
@@ -712,12 +740,36 @@ static int tpp_cuda_device_arg(PyObject* obj, unsigned long long stream,
   }
 
   int status = -1;
+  // PyDict_GetItemString requires an actual dict; every published exporter
+  // provides one, but a mapping would otherwise take an unchecked path.
+  if (!PyDict_Check(cai)) {
+    PyErr_SetString(PyExc_TypeError, "__cuda_array_interface__ must be a dict");
+    Py_DECREF(cai);
+    return -1;
+  }
   PyObject* data = PyDict_GetItemString(cai, "data");
   PyObject* typestr = PyDict_GetItemString(cai, "typestr");
   PyObject* pyshape = PyDict_GetItemString(cai, "shape");
+  PyObject* pyversion = PyDict_GetItemString(cai, "version");
   if (!data || !PyTuple_Check(data) || PyTuple_GET_SIZE(data) != 2 ||
-      !typestr || !pyshape || !PySequence_Check(pyshape)) {
+      !typestr || !PyUnicode_Check(typestr) || !pyshape ||
+      !PySequence_Check(pyshape)) {
     PyErr_SetString(PyExc_TypeError, "malformed __cuda_array_interface__");
+    Py_DECREF(cai);
+    return -1;
+  }
+  // Versions past 3 may add fields that change how the buffer is read.
+  long version = pyversion ? PyLong_AsLong(pyversion) : 3;
+  if (PyErr_Occurred() || version < 1 || version > 3) {
+    PyErr_Clear();
+    PyErr_Format(PyExc_TypeError,
+                 "unsupported __cuda_array_interface__ version %ld", version);
+    Py_DECREF(cai);
+    return -1;
+  }
+  if (PyDict_GetItemString(cai, "mask") &&
+      PyDict_GetItemString(cai, "mask") != Py_None) {
+    PyErr_SetString(PyExc_TypeError, "masked arrays are not supported");
     Py_DECREF(cai);
     return -1;
   }
@@ -728,18 +780,33 @@ static int tpp_cuda_device_arg(PyObject* obj, unsigned long long stream,
     Py_ssize_t ndim = PySequence_Size(pyshape);
     for (Py_ssize_t i = 0; i < ndim; ++i) {
       PyObject* d = PySequence_GetItem(pyshape, i);
-      dims.push_back(d ? PyLong_AsSsize_t(d) : 0);
+      dims.push_back(d ? PyLong_AsSsize_t(d) : -1);
       Py_XDECREF(d);
     }
-    const char* ts = cpyrt_PyText_AsString(typestr);
-    out = CreateLowLevelViewFromTypestr((void*)ptr, ts,
-                                        dims_t(dims.size(), dims.data()));
-    if (!out)
+    const char* ts =
+        PyErr_Occurred() ? nullptr : cpyrt_PyText_AsString(typestr);
+    long itemsize = ts ? strtol(ts + 2, nullptr, 10) : 0;
+    if (!ts) {
+      PyErr_Clear();
+      PyErr_SetString(PyExc_TypeError, "malformed __cuda_array_interface__");
+    } else if (!tpp_cuda_is_contiguous(PyDict_GetItemString(cai, "strides"),
+                                       dims, itemsize)) {
+      // The kernel gets a pointer, not a layout: a strided buffer would be
+      // read as if it were dense, silently returning wrong results.
       PyErr_Format(PyExc_TypeError,
-                   "no CUDA kernel argument type for buffers of type '%s'",
-                   ts ? ts : "?");
-    else
-      status = 1;
+                   "'%s' is not C-contiguous; CUDA kernels take dense "
+                   "buffers (copy it first)",
+                   Py_TYPE(obj)->tp_name);
+    } else {
+      out = CreateLowLevelViewFromTypestr((void*)ptr, ts,
+                                          dims_t(dims.size(), dims.data()));
+      if (!out)
+        PyErr_Format(PyExc_TypeError,
+                     "no CUDA kernel argument type for buffers of type '%s'",
+                     ts);
+      else
+        status = 1;
+    }
   }
 
   // The producer names the stream its pending work runs on; ours must

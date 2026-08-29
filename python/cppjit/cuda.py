@@ -338,6 +338,7 @@ def _view_dlpack(obj, stream):
         raise TypeError(f"DLPack import failed: {error}")
     itemsize = info.bits // 8
     strides = tuple(s * itemsize for s in info.strides) or None
+    _check_contiguous(strides, tuple(info.shape), itemsize, type(obj).__name__)
     return _DeviceView(
         info.data,
         tuple(info.shape),
@@ -357,6 +358,21 @@ def _same_stream(a, b):
     return a == b or (a in (0, 1) and b in (0, 1))
 
 
+def _check_contiguous(strides, shape, itemsize, what):
+    """Kernels index a bare pointer densely, so only C-contiguous buffers
+    can be passed on; a strided one would be read as if it were dense."""
+    if strides is None:
+        return
+    expected = itemsize
+    for dim, stride in zip(reversed(shape), reversed(tuple(strides))):
+        if stride != expected:
+            raise TypeError(
+                f"{what} is not C-contiguous; CUDA kernels take dense "
+                "buffers (copy it first)"
+            )
+        expected *= dim
+
+
 def _view_cai(obj, cai, stream):
     _ensure_helpers()
     if cai.get("mask") is not None:
@@ -373,10 +389,17 @@ def _view_cai(obj, cai, stream):
         if rc:
             raise RuntimeError(f"stream ordering failed: cudaError={rc}")
     strides = cai.get("strides")
+    typestr = cai["typestr"]
+    _check_contiguous(
+        strides,
+        tuple(cai["shape"]),
+        int(typestr[2:] or 1),
+        type(obj).__name__,
+    )
     return _DeviceView(
         ptr,
         tuple(cai["shape"]),
-        cai["typestr"],
+        typestr,
         strides=None if strides is None else tuple(strides),
         readonly=bool(readonly),
         owner=obj,

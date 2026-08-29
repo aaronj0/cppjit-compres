@@ -1209,7 +1209,12 @@ PyObject* cpyrt::CreateLowLevelViewFromTypestr(void* ptr, const char* typestr,
     case 4:
       return CreateLowLevelView((int*)ptr, shape);
     case 8:
-      return CreateLowLevelView((long*)ptr, shape);
+      // the type strings name a width, so pick whichever C type carries
+      // it: `long` is 64-bit on LP64 and 32-bit on Windows
+      if constexpr (sizeof(long) == 8)
+        return CreateLowLevelView((long*)ptr, shape);
+      else
+        return CreateLowLevelView((long long*)ptr, shape);
     }
     break;
   case 'u':
@@ -1221,7 +1226,10 @@ PyObject* cpyrt::CreateLowLevelViewFromTypestr(void* ptr, const char* typestr,
     case 4:
       return CreateLowLevelView((unsigned int*)ptr, shape);
     case 8:
-      return CreateLowLevelView((unsigned long*)ptr, shape);
+      if constexpr (sizeof(unsigned long) == 8)
+        return CreateLowLevelView((unsigned long*)ptr, shape);
+      else
+        return CreateLowLevelView((unsigned long long*)ptr, shape);
     }
     break;
   case 'f':
