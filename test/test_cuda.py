@@ -530,6 +530,44 @@ class TestCUDA:
         cppjit.gbl.cppjit_cuda_scale[1, 32](producer(strides=(4,)), n, 3)
         assert cppjit.gbl.cppjit_cuda_sum_free(dev, n) == 3 * n * (n - 1) // 2
 
+    def test17_read_only_buffers_need_const(self):
+        """a read-only buffer binds to a const parameter, not a mutable one"""
+
+        import cppjit
+        from pytest import raises
+
+        cppjit.cppdef("""
+        __global__ void cppjit_cuda_copy(const int* v, int* out, int n) {
+            int i = blockIdx.x * blockDim.x + threadIdx.x;
+            if (i < n) out[i] = v[i];
+        }
+        """)
+
+        n = 32
+        src = cppjit.gbl.cppjit_cuda_iota(n)
+        dst = cppjit.gbl.cppjit_cuda_iota(n)
+        ptr = int(cppjit.addressof(src))
+        read_only = type(
+            "RO",
+            (),
+            {
+                "__cuda_array_interface__": {
+                    "version": 3,
+                    "shape": (n,),
+                    "typestr": "<i4",
+                    "data": (ptr, True),
+                    "strides": None,
+                    "stream": None,
+                }
+            },
+        )()
+
+        with raises(TypeError, match="read-only"):
+            cppjit.gbl.cppjit_cuda_scale[1, 32](read_only, n, 3)
+        cppjit.gbl.cppjit_cuda_copy[1, 32](read_only, dst, n)
+        assert cppjit.gbl.cppjit_cuda_sum_free(dst, n) == n * (n - 1) // 2
+        cppjit.gbl.cppjit_cuda_sum_free(src, n)
+
     def test15_kernel_rejects_host_arrays(self):
         """numpy arrays are refused rather than passed as host pointers"""
 
