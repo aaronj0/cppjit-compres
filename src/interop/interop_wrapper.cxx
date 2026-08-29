@@ -156,7 +156,7 @@ acquireOrCreateInterpreter(const InterOpPaths& Paths) {
   // GPU's architecture itself; CPPJIT_CUDA_PATH and CPPJIT_OFFLOAD_ARCH
   // override the detection. Requires an NVPTX-enabled LLVM.
   std::vector<const char*> gpuArgs;
-  std::string cudaPath, offloadArch;
+  std::string cudaPath, offloadArch, optLevel;
   if (const char* enable = std::getenv("CPPJIT_ENABLE_CUDA")) {
     if (*enable && std::strcmp(enable, "0") != 0) {
       gpuArgs.push_back("--cuda");
@@ -176,6 +176,19 @@ acquireOrCreateInterpreter(const InterOpPaths& Paths) {
       if (const char* a = std::getenv("CPPJIT_OFFLOAD_ARCH")) {
         offloadArch = std::string("--offload-arch=") + a;
         gpuArgs.push_back(offloadArch.c_str());
+      }
+      // Kernels are compiled at the interpreter's optimization level,
+      // which clang leaves at -O0; the #pragma that carries
+      // CPPJIT_OPT_LEVEL elsewhere has no handler on this backend. Passed
+      // here, the level reaches the device compiler instance as well as
+      // the host one. CPPINTEROP_EXTRA_INTERPRETER_ARGS is appended after
+      // these and still overrides.
+      int level = 2;
+      if (const char* o = std::getenv("CPPJIT_OPT_LEVEL"))
+        level = std::atoi(o);
+      if (0 < level && level <= 3) {
+        optLevel = "-O" + std::to_string(level);
+        gpuArgs.push_back(optLevel.c_str());
       }
       g_cuda_enabled = true;
     }
