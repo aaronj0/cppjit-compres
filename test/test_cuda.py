@@ -491,6 +491,45 @@ class TestCUDA:
         with raises(TypeError):  # host memory must not reach a kernel
             cppjit.gbl.cppjit_cuda_scale[2, 64](bytearray(4 * n), n, 3)
 
+    def test16_kernel_rejects_unusable_buffers(self):
+        """buffers a kernel cannot index densely are refused, not misread"""
+
+        import cppjit
+        from pytest import raises
+
+        n = 32
+        dev = cppjit.gbl.cppjit_cuda_iota(n)
+        ptr = int(cppjit.addressof(dev))
+
+        def producer(**over):
+            spec = {
+                "version": 3,
+                "shape": (n,),
+                "typestr": "<i4",
+                "data": (ptr, False),
+                "strides": None,
+                "stream": None,
+            }
+            spec.update(over)
+            return type("P", (), {"__cuda_array_interface__": spec})()
+
+        # a kernel receives a pointer, not a layout: strided input would be
+        # read as if it were dense
+        with raises(TypeError, match="contiguous"):
+            cppjit.gbl.cppjit_cuda_scale[1, 32](producer(strides=(8,)), n, 3)
+        with raises(TypeError, match="version"):
+            cppjit.gbl.cppjit_cuda_scale[1, 32](producer(version=4), n, 3)
+        with raises(TypeError, match="mask"):
+            cppjit.gbl.cppjit_cuda_scale[1, 32](producer(mask=object()), n, 3)
+        with raises(TypeError, match="dict"):
+            cppjit.gbl.cppjit_cuda_scale[1, 32](
+                type("B", (), {"__cuda_array_interface__": [1, 2]})(), n, 3
+            )
+
+        # dense strides describe the same buffer and stay accepted
+        cppjit.gbl.cppjit_cuda_scale[1, 32](producer(strides=(4,)), n, 3)
+        assert cppjit.gbl.cppjit_cuda_sum_free(dev, n) == 3 * n * (n - 1) // 2
+
     def test15_kernel_rejects_host_arrays(self):
         """numpy arrays are refused rather than passed as host pointers"""
 

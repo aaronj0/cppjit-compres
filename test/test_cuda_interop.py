@@ -196,6 +196,29 @@ class TestCuPyInterop:
         cupy.cuda.runtime.deviceSynchronize()
         assert int(cupy.asnumpy(arr).sum()) == 3 * n
 
+    def test06_strided_arrays_are_refused(self):
+        """a non-contiguous slice is refused rather than read as dense"""
+
+        import cppjit
+        import cppjit.cuda
+        import cupy
+        from pytest import raises
+
+        ensure_interop_kernels()
+        a = cupy.arange(16, dtype=cupy.int32)
+        strided = a[::2]  # strides (8,), which a kernel cannot honor
+
+        with raises(TypeError, match="contiguous"):
+            cppjit.gbl.cppjit_cuda_interop_scale[1, 8](strided, 8, 10)
+        with raises(TypeError, match="contiguous"):
+            cppjit.cuda.view(strided)
+        assert cupy.asnumpy(a).tolist() == list(range(16))  # untouched
+
+        dense = cupy.ascontiguousarray(strided)
+        cppjit.gbl.cppjit_cuda_interop_scale[1, 8](dense, 8, 10)
+        cupy.cuda.runtime.deviceSynchronize()
+        assert cupy.asnumpy(dense).tolist() == [0, 20, 40, 60, 80, 100, 120, 140]
+
 
 @mark.skipif(not HAS_TORCH, reason="torch not installed")
 class TestTorchInterop:
