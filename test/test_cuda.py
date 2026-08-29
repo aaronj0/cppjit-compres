@@ -319,8 +319,10 @@ class TestCUDA:
             def __cuda_stream__(self):
                 return (0, 1234)
 
-        cfg = cppjit.cuda._launch_config((2, 64, 0, MethodStream()))
+        stream = MethodStream()
+        cfg, owner = cppjit.cuda._launch_config((2, 64, 0, stream))
         assert cfg == (2, 1, 1, 64, 1, 1, 0, 1234)
+        assert owner is stream  # the handle is only valid while it lives
 
         class WrongVersion:
             def __cuda_stream__(self):
@@ -529,6 +531,33 @@ class TestCUDA:
         # dense strides describe the same buffer and stay accepted
         cppjit.gbl.cppjit_cuda_scale[1, 32](producer(strides=(4,)), n, 3)
         assert cppjit.gbl.cppjit_cuda_sum_free(dev, n) == 3 * n * (n - 1) // 2
+
+    def test18_bound_kernel_holds_its_stream(self):
+        """a foreign stream object outlives the binding that uses it"""
+
+        import cppjit.cuda
+
+        destroyed = []
+
+        class Stream:
+            def __init__(self, handle):
+                self._handle = handle
+
+            def __cuda_stream__(self):
+                return (0, self._handle)
+
+            def __del__(self):
+                destroyed.append(self._handle)
+
+        class Kernel(cppjit.cuda.CudaKernel):
+            def __init__(self):
+                pass  # only the config binding is under test
+
+        bound = Kernel()[1, 1, 0, Stream(4242)]
+        assert bound._config[7] == 4242
+        assert not destroyed, "the stream was released while still bound"
+        del bound
+        assert destroyed == [4242]
 
     def test17_read_only_buffers_need_const(self):
         """a read-only buffer binds to a const parameter, not a mutable one"""
