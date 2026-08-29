@@ -6,5 +6,6 @@
 cupy-cuda12x
 cuda-core[cu12]
 cuda-cccl
-# torch is also exercised when present; install a CUDA 12.x build manually
-# (the wheel is too large to pull in by default).
+# torch is also exercised when present; the wheel is too large to pull in
+# by default, so install a matching CUDA 12.x build manually:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu129

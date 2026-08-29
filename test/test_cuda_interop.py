@@ -180,6 +180,51 @@ class TestTorchInterop:
         assert torch.cuda.is_available()
         assert torch.cuda.device_count() == cppjit_device_count() > 0
 
+    def test02_stream_protocol_launch(self):
+        """JIT'd kernels launch on a torch stream via __cuda_stream__"""
+
+        import cppjit
+        import torch
+
+        ensure_interop_kernels()
+        stream = torch.cuda.Stream()
+        n = 128
+        buf = cppjit.gbl.cppjit_cuda_interop_iota(n)
+        cppjit.gbl.cppjit_cuda_interop_scale[2, 64, 0, stream](buf, n, 3)
+        stream.synchronize()
+        total = cppjit.gbl.cppjit_cuda_interop_sum_free(buf, n)
+        assert total == 3 * n * (n - 1) // 2
+
+    def test03_kernel_consumes_tensor(self):
+        """torch tensors pass into kernel launches (DLPack route)"""
+
+        import torch
+        from pytest import raises
+
+        kern = nvrtc_scale_kernel()
+        n = 192
+        t = torch.arange(n, dtype=torch.int32, device="cuda")
+        kern[3, 64](t, n, 5)
+        torch.cuda.synchronize()
+        assert int(t.sum()) == 5 * n * (n - 1) // 2
+
+        with raises(TypeError):  # dtype mismatch: float32 into int*
+            kern[3, 64](torch.zeros(n, dtype=torch.float32, device="cuda"), n, 5)
+        with raises(TypeError):  # host memory
+            kern[3, 64](torch.arange(n, dtype=torch.int32), n, 5)
+
+    def test04_view_of_tensor(self):
+        """view() imports a torch tensor without copying it"""
+
+        import cppjit.cuda
+        import torch
+
+        t = torch.arange(64, dtype=torch.float32, device="cuda")
+        v = cppjit.cuda.view(t)
+        assert v.ptr == t.data_ptr()
+        assert v.shape == (64,) and v.typestr == "<f4"
+        cppjit.cuda._check_view(v, "const float*")
+
 
 @mark.skipif(not HAS_CUDA_CORE, reason="cuda.core not installed")
 class TestCudaCoreInterop:
