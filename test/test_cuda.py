@@ -296,6 +296,7 @@ class TestCUDA:
         cppjit.gbl.cppjit_cuda_scale[2, 64, 0, MethodStream()](dev, n, 3)
         cppjit.gbl.cppjit_cuda_scale[2, 64, 0, tuple_stream](dev, n, 5)
         cppjit.gbl.cppjit_cuda_sp_stream_sync_destroy(handle)
+
         total = cppjit.gbl.cppjit_cuda_sum_free(dev, n)
         assert total == 15 * n * (n - 1) // 2
 
@@ -435,3 +436,19 @@ class TestCUDA:
             cppjit.cuda.view(np.arange(4))
 
         cppjit.gbl.cppjit_cuda_sum_free(dev, n)
+
+    def test13_optimized_by_default(self):
+        """CUDA mode compiles optimized (CPPJIT_OPT_LEVEL=0 opts out)"""
+
+        import cppjit
+        from support import OPT_LEVEL
+
+        optimized = (
+            cppjit.evaluate("""#ifdef __OPTIMIZE__
+                            true
+                            #else
+                            false
+                            #endif\n""")
+            == 1
+        )
+        assert optimized == (OPT_LEVEL != 0)

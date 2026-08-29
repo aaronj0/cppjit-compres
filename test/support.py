@@ -104,6 +104,11 @@ IS_CPP23 = (
 )
 IS_VALGRIND = True if os.getenv("IS_VALGRIND") else False
 IS_CUDA = os.getenv("CPPJIT_ENABLE_CUDA", "0") not in ("", "0")
+# the interpreter's optimization level; 0 (or an unparsable value) is -O0
+try:
+    OPT_LEVEL = int(os.getenv("CPPJIT_OPT_LEVEL", "2"))
+except ValueError:
+    OPT_LEVEL = 0
 
 
 def _has_module(name):
