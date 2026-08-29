@@ -1750,6 +1750,9 @@ bool interop::CUDAStreamWait(unsigned long long producer,
                              unsigned long long consumer) {
   // An event keeps the ordering on the device: a host-side synchronize
   // would also serialize the caller and is illegal during graph capture.
+  // The helper is compiled once and its address cached; the cache needs no
+  // lock of its own because every caller comes through the bindings and so
+  // holds the GIL, and the compile itself takes the interpreter lock.
   using wait_t = int (*)(unsigned long long, unsigned long long);
   static wait_t wait = nullptr;
   if (!wait) {
