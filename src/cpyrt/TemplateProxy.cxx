@@ -785,11 +785,15 @@ static int tpp_cuda_device_arg(PyObject* obj, unsigned long long stream,
     return -1;
   }
 
-  if (PyObject_IsTrue(PyTuple_GET_ITEM(data, 1)) == 1 &&
-      !tpp_cuda_binds_const(param)) {
+  int readonly = PyObject_IsTrue(PyTuple_GET_ITEM(data, 1));
+  if (readonly < 0) { // __bool__ raised; that exception is the answer
+    Py_DECREF(cai);
+    return -1;
+  }
+  if (readonly && !tpp_cuda_binds_const(param)) {
     PyErr_Format(PyExc_TypeError,
                  "read-only buffer passed for the mutable parameter '%s'",
-                 param);
+                 param ? param : "?");
     Py_DECREF(cai);
     return -1;
   }
@@ -805,6 +809,10 @@ static int tpp_cuda_device_arg(PyObject* obj, unsigned long long stream,
     }
     const char* ts =
         PyErr_Occurred() ? nullptr : cpyrt_PyText_AsString(typestr);
+    // byte order, kind, then the width: anything shorter is malformed and
+    // must not be read past
+    if (ts && (!ts[0] || !ts[1] || !ts[2]))
+      ts = nullptr;
     long itemsize = ts ? strtol(ts + 2, nullptr, 10) : 0;
     if (!ts) {
       PyErr_Clear();

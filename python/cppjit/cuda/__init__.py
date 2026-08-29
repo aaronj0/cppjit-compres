@@ -16,6 +16,8 @@ kernel's parameter list; a per-signature dispatch function is JIT'd
 once and reused by every kernel and module with that signature.
 """
 
+import ctypes as _ctypes
+
 import cppjit
 
 __all__ = ["load_module", "view", "CudaModule", "CudaKernel"]
@@ -33,7 +35,11 @@ def _ensure_helpers():
     global _ns
     if _ns is not None:
         return
-    cppjit.load_library("libcuda")
+    # the driver is versioned: libcuda.so is only present with the -dev
+    # package, and a bare soname resolves against whichever toolkit the
+    # loader happens to find first
+    if not cppjit.load_library("libcuda.so.1"):
+        cppjit.load_library("libcuda")
     cppjit.cppdef("""
     #include <cuda.h>
     #include <cuda_runtime.h>
@@ -231,8 +237,10 @@ _CTYPE_TYPESTR = {
     "double": "<f8",
     "int": "<i4",
     "unsigned int": "<u4",
-    "long": "<i8",
-    "unsigned long": "<u8",
+    # `long` is 64-bit on LP64 and 32-bit on Windows, so it is sized here
+    # rather than assumed
+    "long": f"<i{_ctypes.sizeof(_ctypes.c_long)}",
+    "unsigned long": f"<u{_ctypes.sizeof(_ctypes.c_ulong)}",
     "long long": "<i8",
     "unsigned long long": "<u8",
     "short": "<i2",
@@ -277,6 +285,7 @@ class _DeviceView:
         self._capsule = capsule
         self._managed = managed
         self._versioned = versioned
+        self._stream = stream
         # A view is itself an exporter, so it can be handed to kernel
         # launches and to other libraries; built once, since producers
         # that rebuild this dict per access dominate the launch cost.
@@ -289,6 +298,15 @@ class _DeviceView:
             "stream": stream if stream else 1,
         }
 
+    def order_for(self, stream):
+        """Make `stream` wait for the work this view was imported after."""
+        if _same_stream(self._stream, stream):
+            return
+        rc = _ns.wait_on(self._stream, stream)
+        if rc:
+            raise RuntimeError(f"stream ordering failed: cudaError={rc}")
+        self._stream = stream
+
     def close(self):
         """Release the DLPack tensor (once); CAI views hold no resources."""
         if self._managed:
@@ -296,21 +314,25 @@ class _DeviceView:
             self._managed = 0
 
     def __del__(self):
-        try:
+        # the namespace is gone during interpreter shutdown; anything else
+        # is a real failure and stays visible as "Exception ignored in"
+        if _dlpack_ns is not None:
             self.close()
-        except Exception:
-            pass
 
 
 def view(obj, stream=0):
     """A device view of a __dlpack__ or __cuda_array_interface__ exporter,
     ordered against `stream` (an int handle or __cuda_stream__ object)."""
-    stream = _stream_handle(stream)
+    stream, stream_owner = _stream_handle(stream)
     if hasattr(obj, "__dlpack_device__"):
-        return _view_dlpack(obj, stream)
+        v = _view_dlpack(obj, stream)
+        v._stream_owner = stream_owner  # the view names this stream
+        return v
     cai = getattr(obj, "__cuda_array_interface__", None)
     if cai is not None:
-        return _view_cai(obj, cai, stream)
+        v = _view_cai(obj, cai, stream)
+        v._stream_owner = stream_owner
+        return v
     raise TypeError(
         "expected a __dlpack__ or __cuda_array_interface__ exporter, "
         f"not '{type(obj).__name__}'"
@@ -373,12 +395,32 @@ def _check_contiguous(strides, shape, itemsize, what):
         expected *= dim
 
 
+def _producer_stream(obj):
+    """The stream a pre-v3 exporter has its pending work on, where the
+    library can be asked. PyTorch reports version 2 with no stream field,
+    so taking its silence for "nothing pending" would race against work it
+    queued on its current stream."""
+    import sys
+
+    torch = sys.modules.get("torch")
+    if torch is not None and torch.is_tensor(obj):
+        return torch.cuda.current_stream(obj.device).cuda_stream
+    return None
+
+
 def _view_cai(obj, cai, stream):
     _ensure_helpers()
+    version = cai.get("version", 0)
+    if not 1 <= version <= 3:
+        raise TypeError(f"unsupported __cuda_array_interface__ version {version}")
     if cai.get("mask") is not None:
         raise TypeError("masked CUDA arrays are not supported")
     ptr, readonly = cai["data"]
+    # versions below 3 predate the stream field, so a producer that reports
+    # one cannot say what its pending work runs on
     producer = cai.get("stream")
+    if producer is None and version < 3:
+        producer = _producer_stream(obj)
     if producer == 0:
         raise TypeError(
             "__cuda_array_interface__ stream 0 is disallowed by the protocol"
@@ -483,9 +525,10 @@ def _dims(spec, what):
 
 
 def _stream_handle(spec):
-    """The stream slot: an int handle or a __cuda_stream__ object."""
+    """The stream slot: an int handle or a __cuda_stream__ object. Returns
+    (handle, owner); the owner must outlive every launch on the handle."""
     if isinstance(spec, int):
-        return spec
+        return spec, None
     proto = getattr(spec, "__cuda_stream__", None)
     if proto is None:
         raise TypeError(
@@ -498,24 +541,29 @@ def _stream_handle(spec):
         raise TypeError("__cuda_stream__ must provide (version, handle)") from None
     if version != 0:
         raise TypeError(f"unsupported __cuda_stream__ protocol version {version}")
-    return int(handle)
+    return int(handle), spec
 
 
 def _launch_config(key):
+    """The eight launcher scalars, plus the stream object to keep alive."""
     items = key if isinstance(key, tuple) else (key,)
     if not 2 <= len(items) <= 4:
         raise TypeError(_CONFIG_ERROR)
     shmem = items[2] if len(items) > 2 else 0
-    stream = _stream_handle(items[3]) if len(items) > 3 else 0
-    return _dims(items[0], "grid") + _dims(items[1], "block") + (shmem, stream)
+    stream, owner = _stream_handle(items[3]) if len(items) > 3 else (0, None)
+    config = _dims(items[0], "grid") + _dims(items[1], "block") + (shmem, stream)
+    return config, owner
 
 
 class _BoundKernel:
     """A kernel with its launch config bound, ready to call."""
 
-    def __init__(self, kernel, config):
+    def __init__(self, kernel, config, stream_owner=None):
         self._kernel = kernel
         self._config = config
+        # a foreign stream is destroyed with its python object, so the
+        # binding holds it for as long as launches can use the handle
+        self._stream_owner = stream_owner
 
     def __call__(self, *args, **kwds):
         if kwds:
@@ -526,10 +574,15 @@ class _BoundKernel:
         for i, a in enumerate(args):
             if isinstance(a, (int, float)):
                 continue
-            v = a if isinstance(a, _DeviceView) else None
-            if v is None and (
-                hasattr(a, "__cuda_array_interface__")
-                or hasattr(a, "__dlpack_device__")
+            v = None
+            if isinstance(a, _DeviceView):
+                # an imported view was ordered against the stream it was
+                # imported for; a launch on another stream needs its own
+                # handshake
+                v = a
+                v.order_for(self._config[7])
+            elif hasattr(a, "__cuda_array_interface__") or hasattr(
+                a, "__dlpack_device__"
             ):
                 v = view(a, stream=self._config[7])
             if v is not None:
@@ -566,7 +619,8 @@ class CudaKernel:
         self._types = types
 
     def __getitem__(self, key):
-        return _BoundKernel(self, _launch_config(key))
+        config, stream_owner = _launch_config(key)
+        return _BoundKernel(self, config, stream_owner)
 
     def __call__(self, *args, **kwds):
         raise TypeError(_CONFIG_ERROR)
