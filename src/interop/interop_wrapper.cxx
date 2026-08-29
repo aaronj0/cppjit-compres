@@ -1746,6 +1746,42 @@ void interop::AdaptCUDAFunction(interop::TCppMethod_t fn) {
               << fn_name << std::endl;
 }
 
+bool interop::CUDAStreamWait(unsigned long long producer,
+                             unsigned long long consumer) {
+  // An event keeps the ordering on the device: a host-side synchronize
+  // would also serialize the caller and is illegal during graph capture.
+  using wait_t = int (*)(unsigned long long, unsigned long long);
+  static wait_t wait = nullptr;
+  if (!wait) {
+    std::lock_guard<std::recursive_mutex> Lock(InterOpMutex);
+    const char* code =
+        "#include <cuda_runtime.h>\n"
+        "namespace __cppjit_cuda {\n"
+        "int stream_wait(unsigned long long p,\n"
+        "                unsigned long long c) {\n"
+        "  cudaEvent_t e = nullptr;\n"
+        "  if (cudaEventCreateWithFlags(\n"
+        "          &e, cudaEventDisableTiming) != cudaSuccess)\n"
+        "    return 1;\n"
+        "  int rc = cudaEventRecord(e, (cudaStream_t)p) ||\n"
+        "           cudaStreamWaitEvent((cudaStream_t)c, e, 0);\n"
+        "  cudaEventDestroy(e);\n"
+        "  return rc;\n"
+        "}\n"
+        "}\n";
+    if (!interop::Compile(code))
+      return false;
+    const auto& methods = interop::GetMethodsFromName(
+        interop::GetScope("__cppjit_cuda"), "stream_wait");
+    if (methods.empty())
+      return false;
+    wait = (wait_t)interop::GetFunctionAddress(methods[0], false);
+    if (!wait)
+      return false;
+  }
+  return wait(producer, consumer) == 0;
+}
+
 interop::TCppType_t interop::GetDatamemberType(TCppScope_t var) {
   std::lock_guard<std::recursive_mutex> Lock(InterOpMutex);
   return Cpp::GetVariableType(Cpp::GetUnderlyingScope(var));

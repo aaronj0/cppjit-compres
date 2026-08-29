@@ -5,8 +5,10 @@ using namespace cppjit;
 #include "CPPClassMethod.h"
 #include "CPPConstructor.h"
 #include "CPPFunction.h"
+#include "CPPInstance.h"
 #include "CPPMethod.h"
 #include "CPPOverload.h"
+#include "LowLevelViews.h"
 #include "PyCallable.h"
 #include "PyStrings.h"
 #include "TemplateProxy.h"
@@ -664,6 +666,110 @@ static PyObject* tpp_cuda_launch_config(PyObject* args) {
 }
 
 //----------------------------------------------------------------------------
+static bool tpp_cuda_same_stream(unsigned long long a, unsigned long long b) {
+  // 0 and 1 both name the legacy default stream (2 is per-thread default).
+  return a == b || ((a | b) == 1);
+}
+
+//----------------------------------------------------------------------------
+static int tpp_cuda_device_arg(PyObject* obj, unsigned long long stream,
+                               PyObject*& out) {
+  // Kernels take device memory. Buffers offered through the CUDA array
+  // interface become typed views over their device pointer; host buffers
+  // are refused rather than passed on as a pointer the device cannot
+  // dereference. Returns 1 when `out` replaces the argument, 0 to keep
+  // the argument as it is, -1 with an exception set.
+  PyObject* cai = PyObject_GetAttr(obj, PyStrings::gCudaArrayInterface);
+  if (!cai) {
+    PyErr_Clear();
+    // A DLPack exporter names the memory it holds: device memory needs the
+    // capsule protocol that cppjit.cuda.view() implements, while host
+    // memory is an error whichever protocol offers it.
+    PyObject* dldev =
+        PyObject_CallMethodObjArgs(obj, PyStrings::gDLPackDevice, nullptr);
+    long device = -1;
+    if (dldev) {
+      if (PyTuple_Check(dldev) && PyTuple_GET_SIZE(dldev) == 2)
+        device = PyLong_AsLong(PyTuple_GET_ITEM(dldev, 0));
+      Py_DECREF(dldev);
+    }
+    PyErr_Clear();
+    if (device == 2 || device == 13) { // kDLCUDA, kDLCUDAManaged
+      PyErr_Format(PyExc_TypeError,
+                   "'%s' offers its buffer through DLPack only; import it "
+                   "with cppjit.cuda.view() and pass the view",
+                   Py_TYPE(obj)->tp_name);
+      return -1;
+    }
+    if (device != -1 || PyObject_CheckBuffer(obj) ||
+        PyObject_HasAttr(obj, PyStrings::gArrayInterface)) {
+      PyErr_Format(PyExc_TypeError,
+                   "host memory ('%s') passed to a CUDA kernel",
+                   Py_TYPE(obj)->tp_name);
+      return -1;
+    }
+    return 0;
+  }
+
+  int status = -1;
+  PyObject* data = PyDict_GetItemString(cai, "data");
+  PyObject* typestr = PyDict_GetItemString(cai, "typestr");
+  PyObject* pyshape = PyDict_GetItemString(cai, "shape");
+  if (!data || !PyTuple_Check(data) || PyTuple_GET_SIZE(data) != 2 ||
+      !typestr || !pyshape || !PySequence_Check(pyshape)) {
+    PyErr_SetString(PyExc_TypeError, "malformed __cuda_array_interface__");
+    Py_DECREF(cai);
+    return -1;
+  }
+
+  unsigned long long ptr = PyLong_AsUnsignedLongLong(PyTuple_GET_ITEM(data, 0));
+  if (ptr != (unsigned long long)-1 || !PyErr_Occurred()) {
+    std::vector<dim_t> dims;
+    Py_ssize_t ndim = PySequence_Size(pyshape);
+    for (Py_ssize_t i = 0; i < ndim; ++i) {
+      PyObject* d = PySequence_GetItem(pyshape, i);
+      dims.push_back(d ? PyLong_AsSsize_t(d) : 0);
+      Py_XDECREF(d);
+    }
+    const char* ts = cpyrt_PyText_AsString(typestr);
+    out = CreateLowLevelViewFromTypestr((void*)ptr, ts,
+                                        dims_t(dims.size(), dims.data()));
+    if (!out)
+      PyErr_Format(PyExc_TypeError,
+                   "no CUDA kernel argument type for buffers of type '%s'",
+                   ts ? ts : "?");
+    else
+      status = 1;
+  }
+
+  // The producer names the stream its pending work runs on; ours must
+  // wait for it before reading the buffer.
+  PyObject* pystream =
+      status == 1 ? PyDict_GetItemString(cai, "stream") : nullptr;
+  if (pystream && pystream != Py_None) {
+    unsigned long long producer = PyLong_AsUnsignedLongLong(pystream);
+    if (producer == (unsigned long long)-1 && PyErr_Occurred()) {
+      status = -1;
+    } else if (producer == 0) {
+      PyErr_SetString(PyExc_TypeError, "__cuda_array_interface__ stream 0 is "
+                                       "disallowed by the protocol");
+      status = -1;
+    } else if (!tpp_cuda_same_stream(producer, stream) &&
+               !interop::CUDAStreamWait(producer, stream)) {
+      PyErr_SetString(PyExc_RuntimeError,
+                      "could not order the launch after the buffer's stream");
+      status = -1;
+    }
+    if (status < 0) {
+      Py_CLEAR(out);
+    }
+  }
+
+  Py_DECREF(cai);
+  return status;
+}
+
+//----------------------------------------------------------------------------
 static PyObject* tpp_cuda_launch(TemplateProxy* pytmpl, PyObject* const* args,
                                  size_t nargsf, PyObject* kwds) {
   // Dispatch to the runtime launcher AdaptCUDAFunction generated in the
@@ -687,11 +793,38 @@ static PyObject* tpp_cuda_launch(TemplateProxy* pytmpl, PyObject* const* args,
   std::vector<PyObject*> largs(nconf + argc);
   for (Py_ssize_t i = 0; i < nconf; ++i)
     largs[i] = PyTuple_GET_ITEM(pytmpl->fLaunchConfig, i);
-  for (Py_ssize_t i = 0; i < argc; ++i)
-    largs[nconf + i] = args[i];
+
+  unsigned long long stream =
+      nconf == 8 ? PyLong_AsUnsignedLongLong(
+                       PyTuple_GET_ITEM(pytmpl->fLaunchConfig, 7))
+                 : 0;
+  std::vector<PyObject*> views; // substitutions, alive across the launch
+  for (Py_ssize_t i = 0; i < argc; ++i) {
+    PyObject* arg = args[i];
+    largs[nconf + i] = arg;
+    // the types the converters take as they are, checked before any
+    // attribute lookup so ordinary launches pay nothing for this
+    if (PyLong_CheckExact(arg) || PyFloat_CheckExact(arg) ||
+        LowLevelView_Check(arg) || CPPInstance_Check(arg))
+      continue;
+    PyObject* view = nullptr;
+    int rc = tpp_cuda_device_arg(arg, stream, view);
+    if (rc < 0) {
+      for (auto* v : views)
+        Py_DECREF(v);
+      Py_DECREF(launcher);
+      return nullptr;
+    }
+    if (rc > 0) {
+      largs[nconf + i] = view;
+      views.push_back(view);
+    }
+  }
 
   PyObject* result =
       cpyrt_PyObject_Call(launcher, largs.data(), nconf + argc, kwds);
+  for (auto* v : views)
+    Py_DECREF(v);
   Py_DECREF(launcher);
   return result;
 }

@@ -77,6 +77,12 @@ inline PyObject* CreatePointerView(void* ptr, cdims_t shape = 0) {
   return CreateLowLevelView((uintptr_t*)ptr, shape);
 }
 
+// View over memory described by a numpy type string ("<i4", "|b1", ...),
+// as the array interfaces spell their element types. Returns nullptr
+// without an error set for a type string that has no view type.
+PyObject* CreateLowLevelViewFromTypestr(void* ptr, const char* typestr,
+                                        cdims_t shape);
+
 //- low level view type and type verification --------------------------------
 extern PyTypeObject LowLevelView_Type;
 

@@ -266,6 +266,7 @@ class _DeviceView:
         managed=0,
         versioned=False,
         capsule=None,
+        stream=0,
     ):
         self.ptr = int(ptr)
         self.shape = tuple(shape)
@@ -276,6 +277,17 @@ class _DeviceView:
         self._capsule = capsule
         self._managed = managed
         self._versioned = versioned
+        # A view is itself an exporter, so it can be handed to kernel
+        # launches and to other libraries; built once, since producers
+        # that rebuild this dict per access dominate the launch cost.
+        self.__cuda_array_interface__ = {
+            "version": 3,
+            "shape": self.shape,
+            "typestr": typestr,
+            "data": (self.ptr, self.readonly),
+            "strides": self.strides,
+            "stream": stream if stream else 1,
+        }
 
     def close(self):
         """Release the DLPack tensor (once); CAI views hold no resources."""
@@ -336,7 +348,13 @@ def _view_dlpack(obj, stream):
         managed=info.managed,
         versioned=info.versioned,
         capsule=capsule,
+        stream=stream,
     )
+
+
+def _same_stream(a, b):
+    """0 and 1 both name the legacy default stream (2 is per-thread)."""
+    return a == b or (a in (0, 1) and b in (0, 1))
 
 
 def _view_cai(obj, cai, stream):
@@ -349,9 +367,9 @@ def _view_cai(obj, cai, stream):
         raise TypeError(
             "__cuda_array_interface__ stream 0 is disallowed by the protocol"
         )
-    if producer is not None and producer != stream:
+    if producer is not None and not _same_stream(producer, stream):
         # CAI: the producer names its stream; order ours after it
-        rc = _ns.wait_on(producer, 1 if stream == 0 else stream)
+        rc = _ns.wait_on(producer, stream)
         if rc:
             raise RuntimeError(f"stream ordering failed: cudaError={rc}")
     strides = cai.get("strides")
@@ -362,6 +380,7 @@ def _view_cai(obj, cai, stream):
         strides=None if strides is None else tuple(strides),
         readonly=bool(readonly),
         owner=obj,
+        stream=stream,
     )
 
 

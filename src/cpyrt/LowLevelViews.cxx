@@ -1182,3 +1182,64 @@ PyObject* cpyrt::CreateLowLevelView_i8(uint8_t** address, cdims_t shape) {
       CreateLowLevelViewT<uint8_t>(address, shape, "B", "uint8_t");
   CPPJIT_RET_W_CREATOR(uint8_t**, CreateLowLevelView_i8);
 }
+
+PyObject* cpyrt::CreateLowLevelViewFromTypestr(void* ptr, const char* typestr,
+                                               cdims_t shape) {
+  // "<i4" and friends: byte order, kind, item size in bytes. The views
+  // are native-endian, so a foreign byte order has no view type.
+  if (!typestr || !typestr[0] || !typestr[1])
+    return nullptr;
+  const char order = typestr[0];
+  const char kind = typestr[1];
+  const long size = strtol(typestr + 2, nullptr, 10);
+  if (order == (PY_LITTLE_ENDIAN ? '>' : '<'))
+    return nullptr;
+
+  switch (kind) {
+  case 'b':
+    if (size == 1)
+      return CreateLowLevelView((bool*)ptr, shape);
+    break;
+  case 'i':
+    switch (size) {
+    case 1:
+      return CreateLowLevelView_i8((int8_t*)ptr, shape);
+    case 2:
+      return CreateLowLevelView((short*)ptr, shape);
+    case 4:
+      return CreateLowLevelView((int*)ptr, shape);
+    case 8:
+      return CreateLowLevelView((long*)ptr, shape);
+    }
+    break;
+  case 'u':
+    switch (size) {
+    case 1:
+      return CreateLowLevelView_i8((uint8_t*)ptr, shape);
+    case 2:
+      return CreateLowLevelView((unsigned short*)ptr, shape);
+    case 4:
+      return CreateLowLevelView((unsigned int*)ptr, shape);
+    case 8:
+      return CreateLowLevelView((unsigned long*)ptr, shape);
+    }
+    break;
+  case 'f':
+    switch (size) {
+    case 4:
+      return CreateLowLevelView((float*)ptr, shape);
+    case 8:
+      return CreateLowLevelView((double*)ptr, shape);
+    }
+    break;
+  case 'c':
+    switch (size) {
+    case 8:
+      return CreateLowLevelView((std::complex<float>*)ptr, shape);
+    case 16:
+      return CreateLowLevelView((std::complex<double>*)ptr, shape);
+    }
+    break;
+  }
+  return nullptr;
+}

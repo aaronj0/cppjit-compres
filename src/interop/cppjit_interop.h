@@ -352,6 +352,10 @@ bool IsCUDAFunction(TCppMethod_t method);
 RPY_EXPORTED
 void AdaptCUDAFunction(TCppMethod_t fn);
 
+// Make `consumer` wait for the work already queued on `producer`, so a
+// launch can consume a buffer another library filled on its own stream.
+bool CUDAStreamWait(unsigned long long producer, unsigned long long consumer);
+
 // data member reflection information ----------------------------------------
 RPY_EXPORTED
 void GetDatamembers(TCppScope_t scope, std::vector<TCppScope_t>& datamembers);
