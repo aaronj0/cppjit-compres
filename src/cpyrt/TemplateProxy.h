@@ -38,8 +38,10 @@ public:
   CPPOverload* fTemplated;    // holder for templated overloads
   CPPOverload* fLowPriority;  // low priority overloads such as void*/void**
 
-  int fIsCUDAKernel;           // tri-state: -1 unknown, 0 no, 1 yes
-  PyObject* fCUDALauncherName; // interned launcher attribute name
+  int fIsCUDAKernel;                      // tri-state: -1 unknown, 0 no, 1 yes
+  PyObject* fCUDALauncherName;            // interned launcher attribute name
+  std::vector<std::string> fCUDAArgTypes; // kernel parameters, for checking
+                                          // what a device buffer may bind to
 
   TP_DispatchMap_t fDispatchMap;
   PyObject* fDoc;

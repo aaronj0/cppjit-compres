@@ -700,8 +700,19 @@ static bool tpp_cuda_is_contiguous(PyObject* strides,
 }
 
 //----------------------------------------------------------------------------
+static bool tpp_cuda_binds_const(const char* param) {
+  // A buffer the producer marked read-only may only bind to a parameter
+  // whose pointee is const; `int* const` does not qualify, so look for
+  // const ahead of the star.
+  if (!param)
+    return true; // parameter type unknown: leave the check to the converter
+  const char* star = strchr(param, '*');
+  return star && std::string(param, star).find("const") != std::string::npos;
+}
+
+//----------------------------------------------------------------------------
 static int tpp_cuda_device_arg(PyObject* obj, unsigned long long stream,
-                               PyObject*& out) {
+                               const char* param, PyObject*& out) {
   // Kernels take device memory. Buffers offered through the CUDA array
   // interface become typed views over their device pointer; host buffers
   // are refused rather than passed on as a pointer the device cannot
@@ -770,6 +781,15 @@ static int tpp_cuda_device_arg(PyObject* obj, unsigned long long stream,
   if (PyDict_GetItemString(cai, "mask") &&
       PyDict_GetItemString(cai, "mask") != Py_None) {
     PyErr_SetString(PyExc_TypeError, "masked arrays are not supported");
+    Py_DECREF(cai);
+    return -1;
+  }
+
+  if (PyObject_IsTrue(PyTuple_GET_ITEM(data, 1)) == 1 &&
+      !tpp_cuda_binds_const(param)) {
+    PyErr_Format(PyExc_TypeError,
+                 "read-only buffer passed for the mutable parameter '%s'",
+                 param);
     Py_DECREF(cai);
     return -1;
   }
@@ -865,6 +885,19 @@ static PyObject* tpp_cuda_launch(TemplateProxy* pytmpl, PyObject* const* args,
       nconf == 8 ? PyLong_AsUnsignedLongLong(
                        PyTuple_GET_ITEM(pytmpl->fLaunchConfig, 7))
                  : 0;
+  // the kernel's own parameter types say what a device buffer may bind to
+  if (argc && ti.fCUDAArgTypes.empty()) {
+    interop::TCppScope_t scope = ((CPPScope*)ti.fPyClass)->fCppType;
+    for (auto method : interop::GetMethodsFromName(scope, ti.fCppName)) {
+      if (!interop::IsCUDAFunction(method))
+        continue;
+      for (size_t a = 0, n = interop::GetMethodNumArgs(method); a < n; ++a)
+        ti.fCUDAArgTypes.push_back(
+            interop::GetMethodArgTypeAsString(method, a));
+      break;
+    }
+  }
+
   std::vector<PyObject*> views; // substitutions, alive across the launch
   for (Py_ssize_t i = 0; i < argc; ++i) {
     PyObject* arg = args[i];
@@ -875,7 +908,10 @@ static PyObject* tpp_cuda_launch(TemplateProxy* pytmpl, PyObject* const* args,
         LowLevelView_Check(arg) || CPPInstance_Check(arg))
       continue;
     PyObject* view = nullptr;
-    int rc = tpp_cuda_device_arg(arg, stream, view);
+    const char* param = (size_t)i < ti.fCUDAArgTypes.size()
+                            ? ti.fCUDAArgTypes[i].c_str()
+                            : nullptr;
+    int rc = tpp_cuda_device_arg(arg, stream, param, view);
     if (rc < 0) {
       for (auto* v : views)
         Py_DECREF(v);
