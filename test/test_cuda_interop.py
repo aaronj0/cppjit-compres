@@ -169,6 +169,33 @@ class TestCuPyInterop:
         kern[3, 64](v, n, 5)
         assert cppjit.gbl.cppjit_cuda_interop_sum(v.ptr, n) == expect
 
+    def test04_jit_kernel_consumes_cupy(self):
+        """CuPy arrays pass into JIT'd __global__ kernel launches"""
+
+        import cppjit
+        import cupy
+
+        ensure_interop_kernels()
+        n = 256
+        arr = cupy.arange(n, dtype=cupy.int32)
+        cppjit.gbl.cppjit_cuda_interop_scale[4, 64](arr, n, 3)
+        cupy.cuda.runtime.deviceSynchronize()
+        assert int(cupy.asnumpy(arr).sum()) == 3 * n * (n - 1) // 2
+
+    def test05_producer_stream_is_ordered(self):
+        """work queued on the producer's stream precedes the launch"""
+
+        import cppjit
+        import cupy
+
+        ensure_interop_kernels()
+        n = 1 << 20  # large enough that the fill is still in flight
+        with cupy.cuda.Stream():
+            arr = cupy.ones(n, dtype=cupy.int32)
+        cppjit.gbl.cppjit_cuda_interop_scale[(n + 255) // 256, 256](arr, n, 3)
+        cupy.cuda.runtime.deviceSynchronize()
+        assert int(cupy.asnumpy(arr).sum()) == 3 * n
+
 
 @mark.skipif(not HAS_TORCH, reason="torch not installed")
 class TestTorchInterop:
@@ -224,6 +251,19 @@ class TestTorchInterop:
         assert v.ptr == t.data_ptr()
         assert v.shape == (64,) and v.typestr == "<f4"
         cppjit.cuda._check_view(v, "const float*")
+
+    def test05_jit_kernel_consumes_tensor(self):
+        """torch tensors pass into JIT'd __global__ kernel launches"""
+
+        import cppjit
+        import torch
+
+        ensure_interop_kernels()
+        n = 192
+        t = torch.arange(n, dtype=torch.int32, device="cuda")
+        cppjit.gbl.cppjit_cuda_interop_scale[3, 64](t, n, 5)
+        torch.cuda.synchronize()
+        assert int(t.sum()) == 5 * n * (n - 1) // 2
 
 
 @mark.skipif(not HAS_CUDA_CORE, reason="cuda.core not installed")

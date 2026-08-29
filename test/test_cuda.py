@@ -452,3 +452,59 @@ class TestCUDA:
             == 1
         )
         assert optimized == (OPT_LEVEL != 0)
+
+    def test14_kernel_takes_device_interface(self):
+        """JIT'd kernels take buffers offered through the array interface"""
+
+        import cppjit
+        from pytest import raises
+
+        n = 128
+        dev = cppjit.gbl.cppjit_cuda_iota(n)
+        ptr = int(cppjit.addressof(dev))
+
+        class Producer:
+            def __init__(self, stream=None, typestr="<i4", readonly=False):
+                self.__cuda_array_interface__ = {
+                    "version": 3,
+                    "shape": (n,),
+                    "typestr": typestr,
+                    "data": (ptr, readonly),
+                    "strides": None,
+                    "stream": stream,
+                }
+
+        cppjit.gbl.cppjit_cuda_scale[2, 64](Producer(), n, 3)
+        # 1 is the legacy default stream, the one the launch already uses
+        cppjit.gbl.cppjit_cuda_scale[2, 64](Producer(stream=1), n, 5)
+        # a view is an exporter too, so it serves both launch surfaces
+        import cppjit.cuda
+
+        cppjit.gbl.cppjit_cuda_scale[2, 64](cppjit.cuda.view(Producer()), n, 2)
+        total = cppjit.gbl.cppjit_cuda_sum_free(dev, n)
+        assert total == 30 * n * (n - 1) // 2
+
+        with raises(TypeError):  # 0 is not a stream in the protocol
+            cppjit.gbl.cppjit_cuda_scale[2, 64](Producer(stream=0), n, 3)
+        with raises(TypeError):  # no view type for that element type
+            cppjit.gbl.cppjit_cuda_scale[2, 64](Producer(typestr="<m8"), n, 3)
+        with raises(TypeError):  # host memory must not reach a kernel
+            cppjit.gbl.cppjit_cuda_scale[2, 64](bytearray(4 * n), n, 3)
+
+    def test15_kernel_rejects_host_arrays(self):
+        """numpy arrays are refused rather than passed as host pointers"""
+
+        import cppjit
+        import numpy as np
+        from pytest import raises
+
+        n = 64
+        with raises(TypeError):
+            cppjit.gbl.cppjit_cuda_scale[1, 64](np.arange(n, dtype=np.int32), n, 2)
+
+        class DLPackOnly:
+            def __dlpack_device__(self):
+                return (2, 0)  # kDLCUDA
+
+        with raises(TypeError):
+            cppjit.gbl.cppjit_cuda_scale[1, 64](DLPackOnly(), n, 2)
