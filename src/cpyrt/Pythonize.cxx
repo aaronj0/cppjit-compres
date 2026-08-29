@@ -1791,7 +1791,8 @@ bool cpyrt::Pythonize(PyObject* pyclass, interop::TCppScope_t scope) {
   }
 
   if (interop::IsAggregate(((CPPClass*)pyclass)->fCppType) &&
-      name.compare(0, 5, "std::", 5) != 0) {
+      name.compare(0, 5, "std::", 5) != 0 &&
+      name.compare(0, 6, "tuple<", 6) != 0) {
     // create a pseudo-constructor to allow initializer-style object creation
     interop::TCppScope_t kls = ((CPPClass*)pyclass)->fCppType;
     std::vector<interop::TCppScope_t> datamems;
