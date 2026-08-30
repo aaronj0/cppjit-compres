@@ -1,26 +1,21 @@
-from pytest import mark
-from support import IS_CPP23
-
-# The interpreter is a process-wide singleton whose C++ standard is pinned at
-# the first `import cppjit`, so these tests only run when the suite itself is
-# under C++23 (the cxx-standard=23 CI cells). To run them locally (the env var
-# reaches CreateInterpreter for both clang-repl and cling):
-#
-#     CPPINTEROP_EXTRA_INTERPRETER_ARGS=-std=c++23 pytest -v test_cpp23features.py
-
-
-@mark.skipif(
-    not IS_CPP23,
-    reason="C++23 tests need the interpreter to run under -std=c++23",
-)
 class TestCPP23FEATURES:
-    """C++23 features driven via cppjit.cppdef through the JIT (clang-repl/cling)."""
+    """C++23 features driven via cppjit.cppdef through the JIT (clang-repl/cling).
+
+    The class runs on its own -std=c++23 interpreter, so the suite's own
+    standard does not matter; entities declared here die with the scope.
+    """
 
     @classmethod
     def setup_class(cls):
         import cppjit
 
         cls.cppjit = cppjit
+        cls.gbl = cppjit.push_interpreter("-std=c++23")
+
+    @classmethod
+    def teardown_class(cls):
+        del cls.gbl
+        cls.cppjit.pop_interpreter()
 
     def test01_deducing_this_basic(self):
         """Explicit object parameter on a member function (P0847R7)"""
@@ -35,7 +30,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        w = cppjit.gbl.Cpp23DeducingThis.Widget()
+        w = self.gbl.Cpp23DeducingThis.Widget()
         assert w.value == 42
         assert w.get() == 42
 
@@ -52,7 +47,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        w = cppjit.gbl.Cpp23DeducingThis.CWidget()
+        w = self.gbl.Cpp23DeducingThis.CWidget()
         assert w.read() == 7
 
     def test03_deducing_this_by_value(self):
@@ -68,7 +63,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        w = cppjit.gbl.Cpp23DeducingThis.VWidget()
+        w = self.gbl.Cpp23DeducingThis.VWidget()
         w.value = 11
         assert w.snapshot() == 11
 
@@ -85,7 +80,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        w = cppjit.gbl.Cpp23DeducingThis.AWidget()
+        w = self.gbl.Cpp23DeducingThis.AWidget()
         assert w.add(20, 3) == 123
 
     def test05_deducing_this_rvalue_ref(self):
@@ -101,7 +96,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        w = cppjit.gbl.Cpp23DeducingThis.RWidget()
+        w = self.gbl.Cpp23DeducingThis.RWidget()
         assert w.consume() == 13
 
     def test05b_traditional_rvalue_ref_qualifier(self):
@@ -117,7 +112,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        w = cppjit.gbl.Cpp23DeducingThis.QWidget()
+        w = self.gbl.Cpp23DeducingThis.QWidget()
         assert w.consume() == 17
 
     def test06_deducing_this_chaining(self):
@@ -133,7 +128,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        w = cppjit.gbl.Cpp23DeducingThis.BWidget()
+        w = self.gbl.Cpp23DeducingThis.BWidget()
         r = w.set(5).set(8)
         assert r.value == 8
         assert w.value == 8  # same object returned by reference
@@ -151,7 +146,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        w = cppjit.gbl.Cpp23DeducingThis.DWidget()
+        w = self.gbl.Cpp23DeducingThis.DWidget()
         assert w.scale() == 12  # default factor=4
         assert w.scale(10) == 30
 
@@ -168,7 +163,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        a = cppjit.gbl.Cpp23DeducingThis.Adder()
+        a = self.gbl.Cpp23DeducingThis.Adder()
         assert a(23) == 123
 
     def test09_deducing_this_mixed_overload(self):
@@ -185,7 +180,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        w = cppjit.gbl.Cpp23DeducingThis.MWidget()
+        w = self.gbl.Cpp23DeducingThis.MWidget()
         assert w.get() == 50  # explicit-object overload
         assert w.get(7) == 57  # normal overload
 
@@ -203,7 +198,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        w = cppjit.gbl.Cpp23DeducingThis.TWidget()
+        w = self.gbl.Cpp23DeducingThis.TWidget()
         assert w.via() == 9
 
     def test11_deducing_this_templated_with_args(self):
@@ -220,7 +215,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        w = cppjit.gbl.Cpp23DeducingThis.TAWidget()
+        w = self.gbl.Cpp23DeducingThis.TAWidget()
         assert w.plus(2) == 42
 
     def test12_deducing_this_templated_returns_self_type(self):
@@ -237,7 +232,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        w = cppjit.gbl.Cpp23DeducingThis.TRWidget()
+        w = self.gbl.Cpp23DeducingThis.TRWidget()
         assert w.identity() == 99
 
     def test13_deducing_this_abbreviated_auto(self):
@@ -253,7 +248,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        w = cppjit.gbl.Cpp23DeducingThis.AAWidget()
+        w = self.gbl.Cpp23DeducingThis.AAWidget()
         assert w.get() == 23
 
     def test14_deducing_this_by_value_copy_semantics(self):
@@ -269,7 +264,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        w = cppjit.gbl.Cpp23DeducingThis.CopyWidget()
+        w = self.gbl.Cpp23DeducingThis.CopyWidget()
         assert w.bump() == 101  # the copy is mutated
         assert w.value == 1  # ... the original is untouched
 
@@ -287,7 +282,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        d = cppjit.gbl.Cpp23DeducingThis.Derived()
+        d = self.gbl.Cpp23DeducingThis.Derived()
         assert d.get() == 8
 
     # ------------------------------------------------------------------ #
@@ -316,7 +311,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        o = cppjit.gbl.Cpp23DeducingThis.Optional()
+        o = self.gbl.Cpp23DeducingThis.Optional()
         assert o.read() == 5  # forwarding read
         o.value()[0] = 17  # write through the forwarded reference
         assert o.read() == 17  # ... mutation is visible on the object
@@ -345,7 +340,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        assert cppjit.gbl.Cpp23DeducingThis.drive_postfix() == 1  # old.v=0, c.v=1
+        assert self.gbl.Cpp23DeducingThis.drive_postfix() == 1  # old.v=0, c.v=1
 
     def test18_blog_recursive_lambda(self):
         """Blog use-case 4: recursive lambda via the explicit object parameter."""
@@ -362,7 +357,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        assert cppjit.gbl.Cpp23DeducingThis.fib(10) == 55
+        assert self.gbl.Cpp23DeducingThis.fib(10) == 55
 
     def test19_blog_lambda_forwarding(self):
         """Blog use-case 3: closure with an explicit object parameter.
@@ -387,7 +382,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        assert cppjit.gbl.Cpp23DeducingThis.run_callback() == 42
+        assert self.gbl.Cpp23DeducingThis.run_callback() == 42
 
     def test20_blog_pass_by_value(self):
         """Blog use-case 5: pass the object by value for better codegen on small types."""
@@ -402,7 +397,7 @@ class TestCPP23FEATURES:
         }
         """)
 
-        assert cppjit.gbl.Cpp23DeducingThis.just_a_little_guy().uwu() == 42
+        assert self.gbl.Cpp23DeducingThis.just_a_little_guy().uwu() == 42
 
     def test21_blog_sfinae_friendly_transform(self):
         """Blog use-case 6: SFINAE-friendly optional::transform.
@@ -425,4 +420,4 @@ class TestCPP23FEATURES:
         }
         """)
 
-        assert cppjit.gbl.Cpp23DeducingThis.drive_transform() == 42
+        assert self.gbl.Cpp23DeducingThis.drive_transform() == 42
