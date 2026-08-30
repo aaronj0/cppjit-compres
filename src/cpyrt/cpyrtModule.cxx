@@ -992,6 +992,57 @@ static PyObject* AddSmartPtrType(PyObject*, PyObject* args) {
 }
 
 //----------------------------------------------------------------------------
+static PyObject* PushInterpreterScope(PyObject*, PyObject* args) {
+  PyObject* pyflags = nullptr;
+  if (!PyArg_ParseTuple(args, const_cast<char*>("O"), &pyflags))
+    return nullptr;
+
+  PyObject* seq = PySequence_Fast(pyflags, "flags must be a sequence");
+  if (!seq)
+    return nullptr;
+
+  std::vector<std::string> flags;
+  for (Py_ssize_t i = 0; i < PySequence_Fast_GET_SIZE(seq); ++i) {
+    PyObject* item = PySequence_Fast_GET_ITEM(seq, i);
+    const char* flag = PyUnicode_AsUTF8(item);
+    if (!flag) {
+      Py_DECREF(seq);
+      return nullptr;
+    }
+    flags.emplace_back(flag);
+  }
+  Py_DECREF(seq);
+
+  if (!interop::PushInterpreter(flags)) {
+    PyErr_SetString(PyExc_RuntimeError,
+                    "could not create an interpreter for these flags");
+    return nullptr;
+  }
+
+  Py_RETURN_NONE;
+}
+
+//----------------------------------------------------------------------------
+static PyObject* PopInterpreterScope(PyObject*, PyObject*) {
+  if (!interop::InterpreterStackDepth()) {
+    PyErr_SetString(PyExc_RuntimeError, "no pushed interpreter to pop");
+    return nullptr;
+  }
+
+  if (!interop::PopInterpreter()) {
+    PyErr_SetString(PyExc_RuntimeError, "the pushed interpreter is not active");
+    return nullptr;
+  }
+
+  Py_RETURN_NONE;
+}
+
+//----------------------------------------------------------------------------
+static PyObject* InterpreterDepth(PyObject*, PyObject*) {
+  return PyLong_FromSize_t(interop::InterpreterStackDepth());
+}
+
+//----------------------------------------------------------------------------
 static PyObject* BeginCaptureStderr(PyObject*, PyObject*) {
   gOldErrorBuffer = std::cerr.rdbuf();
   std::cerr.rdbuf(gCapturedError.rdbuf());
@@ -1061,6 +1112,13 @@ static PyMethodDef gcpyrtMethods[] = {
      METH_NOARGS, (char*)"Begin capturing stderr to a in memory buffer."},
     {(char*)"_end_capture_stderr", (PyCFunction)EndCaptureStderr, METH_NOARGS,
      (char*)"End capturing stderr and returns the captured buffer."},
+    {(char*)"_push_interpreter", (PyCFunction)PushInterpreterScope,
+     METH_VARARGS,
+     (char*)"Push an interpreter built with the given flags and activate it."},
+    {(char*)"_pop_interpreter", (PyCFunction)PopInterpreterScope, METH_NOARGS,
+     (char*)"Destroy the pushed interpreter and reactivate the previous one."},
+    {(char*)"_interpreter_stack_depth", (PyCFunction)InterpreterDepth,
+     METH_NOARGS, (char*)"Number of pushed interpreters."},
     {nullptr, nullptr, 0, nullptr}};
 
 struct module_state {
