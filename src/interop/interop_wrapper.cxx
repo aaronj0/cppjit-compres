@@ -112,6 +112,11 @@ static InterOpPaths cppinterop_paths() {
   return Paths;
 }
 
+static const InterOpPaths& interopPaths() {
+  static const InterOpPaths Paths = cppinterop_paths();
+  return Paths;
+}
+
 // The one place libclangCppInterOp is dlopen'd.
 static bool loadDispatchAPI(const InterOpPaths& Paths) {
   if (!Cpp::LoadDispatchAPI(Paths.Library.c_str())) {
@@ -121,14 +126,8 @@ static bool loadDispatchAPI(const InterOpPaths& Paths) {
   return true;
 }
 
-// CppInterOp itself appends CPPINTEROP_EXTRA_INTERPRETER_ARGS inside
-// CreateInterpreter, so nothing needs to be forwarded from here.
-static interop::TInterp_t
-acquireOrCreateInterpreter(const InterOpPaths& Paths) {
-  if (auto existingInterp = Cpp::GetInterpreter())
-    return existingInterp;
-
-  std::vector<const char*> args = {"-std=c++17"};
+static std::vector<std::string> baseArgs(const InterOpPaths& Paths) {
+  std::vector<std::string> args = {"-std=c++17"};
 #if !(defined(__arm64__) && defined(__APPLE__))
   // apple silicon clang rejects -march=native
   args.push_back("-march=native");
@@ -142,12 +141,31 @@ acquireOrCreateInterpreter(const InterOpPaths& Paths) {
     resourceDir = Cpp::DetectResourceDir("clang-" CPPJIT_CLANG_MAJOR);
   if (!resourceDir.empty()) {
     args.push_back("-resource-dir");
-    args.push_back(resourceDir.c_str());
+    args.push_back(resourceDir);
   }
-  return Cpp::CreateInterpreter(args, /*GpuArgs=*/{});
+  return args;
 }
 
-static void configureInterpreter(const InterOpPaths& Paths) {
+static std::vector<const char*> argv(const std::vector<std::string>& args) {
+  std::vector<const char*> out;
+  out.reserve(args.size());
+  for (const std::string& arg : args)
+    out.push_back(arg.c_str());
+  return out;
+}
+
+// CppInterOp itself appends CPPINTEROP_EXTRA_INTERPRETER_ARGS inside
+// CreateInterpreter, so nothing needs to be forwarded from here.
+static interop::TInterp_t
+acquireOrCreateInterpreter(const InterOpPaths& Paths) {
+  if (auto existingInterp = Cpp::GetInterpreter())
+    return existingInterp;
+
+  const std::vector<std::string> args = baseArgs(Paths);
+  return Cpp::CreateInterpreter(argv(args), /*GpuArgs=*/{});
+}
+
+static void expandBuiltins() {
   std::set<std::string> bi{g_builtins};
   for (const auto& name : bi) {
     for (const char* a : {"*", "&", "*&", "[]", "*[]"})
@@ -156,7 +174,9 @@ static void configureInterpreter(const InterOpPaths& Paths) {
 
   if (getenv("CPPJIT_DISABLE_FASTPATH"))
     gEnableFastPath = false;
+}
 
+static void configureActiveInterpreter(const InterOpPaths& Paths) {
   // set opt level (default to 2 if not given; Cling itself defaults to 0)
   int optLevel = 2;
 
@@ -173,7 +193,7 @@ static void configureInterpreter(const InterOpPaths& Paths) {
   Cpp::LoadLibrary("libstdc++", /* lookup= */ true);
 }
 
-static void preloadHeaders() {
+static int preloadHeaders() {
   const char* code = "#include <algorithm>\n"
                      "#include <numeric>\n"
                      "#include <complex>\n"
@@ -198,22 +218,25 @@ static void preloadHeaders() {
                      "#include <optional>\n"
                      "#endif\n"
                      "#include <CppInterOp/Dispatch.h>\n";
-  Cpp::Process(code);
+  return Cpp::Process(code);
 }
 
-static void defineRuntimeHelpers() {
-  Cpp::Declare("namespace __cppjit_internal { template<class C1, class C2>"
-               " bool is_equal(const C1& c1, const C2& c2) { return "
-               "(bool)(c1 == c2); } }",
-               /*silent=*/false);
-  Cpp::Declare("namespace __cppjit_internal { template<class C1, class C2>"
-               " bool is_not_equal(const C1& c1, const C2& c2) { return "
-               "(bool)(c1 != c2); } }",
-               /*silent=*/false);
+static int defineRuntimeHelpers() {
+  int rc =
+      Cpp::Declare("namespace __cppjit_internal { template<class C1, class C2>"
+                   " bool is_equal(const C1& c1, const C2& c2) { return "
+                   "(bool)(c1 == c2); } }",
+                   /*silent=*/false);
+  rc |=
+      Cpp::Declare("namespace __cppjit_internal { template<class C1, class C2>"
+                   " bool is_not_equal(const C1& c1, const C2& c2) { return "
+                   "(bool)(c1 != c2); } }",
+                   /*silent=*/false);
 
   // helper for multiple inheritance
-  Cpp::Declare("namespace __cppjit_internal { struct Sep; }",
-               /*silent=*/false);
+  rc |= Cpp::Declare("namespace __cppjit_internal { struct Sep; }",
+                     /*silent=*/false);
+  return rc;
 }
 
 } // unnamed namespace
@@ -231,12 +254,13 @@ extern "C" int LoadCppInterOp() {
   static int Loaded = 0;
   std::call_once(Once, [] {
     std::lock_guard<std::recursive_mutex> Lock(InterOpMutex);
-    const InterOpPaths Paths = cppinterop_paths();
+    const InterOpPaths& Paths = interopPaths();
     if (!loadDispatchAPI(Paths))
       return;
 
     acquireOrCreateInterpreter(Paths);
-    configureInterpreter(Paths);
+    expandBuiltins();
+    configureActiveInterpreter(Paths);
     preloadHeaders();
     defineRuntimeHelpers();
 
