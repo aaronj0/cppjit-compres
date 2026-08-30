@@ -239,6 +239,47 @@ static int defineRuntimeHelpers() {
   return rc;
 }
 
+constexpr const char* ExtraArgsEnv = "CPPINTEROP_EXTRA_INTERPRETER_ARGS";
+
+// CppInterOp appends the environment's arguments after the caller's, which
+// would let a CI cell's -std override the flags a pushed interpreter asks
+// for; splice them in ahead instead and hide the variable while creating.
+struct ScopedEnvUnset {
+  std::string Name;
+  std::string Saved;
+  bool WasSet = false;
+
+  explicit ScopedEnvUnset(const char* name) : Name(name) {
+    if (const char* value = getenv(name)) {
+      Saved = value;
+      WasSet = true;
+#ifdef _WIN32
+      _putenv_s(name, "");
+#else
+      unsetenv(name);
+#endif
+    }
+  }
+  ~ScopedEnvUnset() {
+    if (!WasSet)
+      return;
+#ifdef _WIN32
+    _putenv_s(Name.c_str(), Saved.c_str());
+#else
+    setenv(Name.c_str(), Saved.c_str(), /*overwrite=*/1);
+#endif
+  }
+};
+
+static void appendSplit(std::vector<std::string>& args, const char* value) {
+  std::istringstream in(value ? value : "");
+  std::string token;
+  while (in >> token)
+    args.push_back(token);
+}
+
+static std::vector<interop::TInterp_t> gInterpreterStack;
+
 } // unnamed namespace
 
 // Load CppInterOp and set up the interpreter. A dlopen during static
@@ -267,6 +308,51 @@ extern "C" int LoadCppInterOp() {
     Loaded = 1;
   });
   return Loaded;
+}
+
+interop::TInterp_t
+interop::PushInterpreter(const std::vector<std::string>& extra_args) {
+  std::lock_guard<std::recursive_mutex> Lock(InterOpMutex);
+  if (!Cpp::GetInterpreter())
+    return nullptr;
+
+  const InterOpPaths& Paths = interopPaths();
+  std::vector<std::string> args = baseArgs(Paths);
+  appendSplit(args, getenv(ExtraArgsEnv));
+  args.insert(args.end(), extra_args.begin(), extra_args.end());
+
+  interop::TInterp_t Interp = nullptr;
+  {
+    ScopedEnvUnset Unset(ExtraArgsEnv);
+    Interp = Cpp::CreateInterpreter(argv(args), /*GpuArgs=*/{});
+  }
+  if (!Interp)
+    return nullptr;
+
+  gInterpreterStack.push_back(Interp);
+  configureActiveInterpreter(Paths);
+  if (preloadHeaders() || defineRuntimeHelpers()) {
+    gInterpreterStack.pop_back();
+    Cpp::DeleteInterpreter(nullptr);
+    return nullptr;
+  }
+  return Interp;
+}
+
+bool interop::PopInterpreter() {
+  std::lock_guard<std::recursive_mutex> Lock(InterOpMutex);
+  if (gInterpreterStack.empty())
+    return false;
+  if (Cpp::GetInterpreter() != gInterpreterStack.back())
+    return false;
+
+  gInterpreterStack.pop_back();
+  return Cpp::DeleteInterpreter(nullptr);
+}
+
+size_t interop::InterpreterStackDepth() {
+  std::lock_guard<std::recursive_mutex> Lock(InterOpMutex);
+  return gInterpreterStack.size();
 }
 
 // local helpers -------------------------------------------------------------

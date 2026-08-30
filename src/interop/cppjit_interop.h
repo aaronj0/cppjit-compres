@@ -51,6 +51,18 @@ bool Compile(const std::string& code, bool silent = false);
 RPY_EXPORTED
 std::string ToString(TCppScope_t klass, TCppObject_t obj);
 
+// interpreter stack ---------------------------------------------------------
+// Interpreters stack strictly last-in-first-out on the one created at load,
+// which is never popped. Only the top may go: deleting or activating
+// anywhere else moves the remaining entries, and CppInterOp's move leaves
+// their caches behind.
+RPY_EXPORTED
+TInterp_t PushInterpreter(const std::vector<std::string>& extra_args);
+RPY_EXPORTED
+bool PopInterpreter();
+RPY_EXPORTED
+size_t InterpreterStackDepth();
+
 // name to opaque C++ scope representation -----------------------------------
 RPY_EXPORTED
 std::string ResolveName(const std::string& cppitem_name);
