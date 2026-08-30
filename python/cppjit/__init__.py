@@ -48,8 +48,13 @@ __all__ = [
     "add_library_path",  # add a path to search for libraries
     "add_autoload_map",  # explicitly include an autoload map
     "set_debug",  # enable/disable debug output
+    "push_interpreter",  # push an interpreter built with extra flags
+    "pop_interpreter",  # destroy the pushed interpreter
+    "scoped_interpreter",  # context manager around push/pop
+    "interpreter_stack_depth",  # number of pushed interpreters
 ]
 
+import contextlib
 import ctypes
 import importlib.util
 import os
@@ -260,6 +265,79 @@ def evaluate(input):
     if box.getKind() == gbl.Cpp.Box.K_Unspecified:
         return ~0
     return box.convertTo["long"]()
+
+
+def _bind_interpreter_api():
+    """Materialize the interpreter entry points this module calls.
+
+    They are looked up through `gbl`, so a first lookup while a pushed
+    interpreter is active would search that interpreter instead. They live
+    in the dispatch table, so once bound they stay callable whichever
+    interpreter is active.
+    """
+
+    for name in (
+        "AddIncludePath",
+        "AddSearchPath",
+        "Box",
+        "Declare",
+        "EnableDebugOutput",
+        "Evaluate",
+        "GetNamed",
+        "IsDebugOutputEnabled",
+        "LoadLibrary",
+        "Process",
+        "SizeOf",
+    ):
+        getattr(gbl.Cpp, name)
+    evaluate("__cplusplus")
+
+
+def push_interpreter(*flags):
+    """Push an interpreter configured with `flags` and return its global scope.
+
+    Interpreters stack last-in-first-out on the one created at import, which
+    is never popped. A scope is self-contained: declare through the string
+    APIs (cppdef, cppexec, evaluate, include, load_library) and reach the
+    results through the scope this returns, since the module-level
+    `cppjit.gbl` stays bound to the interpreter created at import.
+
+    Two rules hold while a scope is active. Entities from an interpreter
+    below it must not be called: wrappers are compiled against whichever
+    interpreter is active, so the call leaves the process. And nothing
+    scratch-bound outlives the pop, so its proxies, classes and instances
+    must not be kept, nor objects passed between interpreters.
+
+    Explicit flags beat CPPINTEROP_EXTRA_INTERPRETER_ARGS, the reverse of the
+    import-time interpreter.
+    """
+
+    _bind_interpreter_api()
+    _backend._push_interpreter(tuple(str(flag) for flag in flags))
+    return _backend.CreateScopeProxy("")
+
+
+def pop_interpreter():
+    """Destroy the pushed interpreter and reactivate the one below it"""
+
+    _backend._pop_interpreter()
+
+
+@contextlib.contextmanager
+def scoped_interpreter(*flags):
+    """Push an interpreter for the duration of the block"""
+
+    scope = push_interpreter(*flags)
+    try:
+        yield scope
+    finally:
+        pop_interpreter()
+
+
+def interpreter_stack_depth():
+    """Number of pushed interpreters; 0 when only the import-time one is live"""
+
+    return _backend._interpreter_stack_depth()
 
 
 def macro(cppm):
