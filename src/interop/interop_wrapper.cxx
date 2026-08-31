@@ -770,6 +770,11 @@ interop::TCppScope_t interop::GetActualClass(TCppScope_t klass,
   std::string demangled_name = Cpp::Demangle(mangled_name);
 #endif
 
+  // A type in an anonymous namespace cannot be spelled in injected code, and
+  // AppendTypesSlow crashes trying. Keep the static type.
+  if (demangled_name.find("anonymous namespace") != std::string::npos)
+    return klass;
+
   if (TCppScope_t scope = interop::GetScope(demangled_name))
     return scope;
 
