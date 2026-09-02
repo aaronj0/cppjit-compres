@@ -1,0 +1,61 @@
+# aarch64 companion to cppinterop-clang22-valgrind.supp, loaded by the
+# CI composite on arm cells. That file's llvm/llvm-project#194147 family
+# matches by function name, but this cell's libclangCppInterOp.so
+# carries no local symbol names: the TreeTransform/TemplateInstantiator
+# frames holding the read sites print as "???", so the name patterns
+# cannot fire. These are the same errors re-anchored on obj: frames and
+# the exported Sema entry points below them, taken verbatim from
+# valgrind's --gen-suppressions output on the arm nightly (33 contexts,
+# all Memcheck:Cond, identical on 2026-09-01/02). Drop together with
+# the #194147 family once the upstream fix lands.
+
+# 29 contexts: reads inside the unnamed transform frames reached from
+# Sema::SubstStmt (every function-definition instantiation path).
+{
+   llvm/llvm-project#194147: uninit read under Sema::SubstStmt (unsymbolised aarch64)
+   Memcheck:Cond
+   obj:*/libclangCppInterOp.so
+   ...
+   fun:_ZN5clang4Sema9SubstStmtEPNS_4StmtERKNS_30MultiLevelTemplateArgumentListE
+   ...
+}
+
+# 1 context: the variable-initializer instantiation path.
+{
+   llvm/llvm-project#194147: uninit read under Sema::SubstInitializer (unsymbolised aarch64)
+   Memcheck:Cond
+   obj:*/libclangCppInterOp.so
+   ...
+   fun:_ZN5clang4Sema16SubstInitializerEPNS_4ExprERKNS_30MultiLevelTemplateArgumentListEb
+   fun:_ZN5clang4Sema30InstantiateVariableInitializerEPNS_7VarDeclES2_RKNS_30MultiLevelTemplateArgumentListE
+   ...
+}
+
+# 1 context: the base file's "Clang 22 concepts" entry minus its
+# TemplateInstantiator frames, which are unsymbolised here.
+{
+   Clang 22 concepts: uninitialised value in Sema::BuildExprRequirement (unsymbolised aarch64)
+   Memcheck:Cond
+   fun:_ZN5clang4Sema20BuildExprRequirementEPNS_4ExprEbNS_14SourceLocationENS_8concepts15ExprRequirement21ReturnTypeRequirementE
+   ...
+}
+
+# 2 contexts: recursion so deep no exported symbol appears within the
+# 12 recorded frames -- all-in-library is the narrowest expressible
+# pattern.
+{
+   llvm/llvm-project#194147: uninit read wholly inside unsymbolised frames (aarch64)
+   Memcheck:Cond
+   obj:*/libclangCppInterOp.so
+   obj:*/libclangCppInterOp.so
+   obj:*/libclangCppInterOp.so
+   obj:*/libclangCppInterOp.so
+   obj:*/libclangCppInterOp.so
+   obj:*/libclangCppInterOp.so
+   obj:*/libclangCppInterOp.so
+   obj:*/libclangCppInterOp.so
+   obj:*/libclangCppInterOp.so
+   obj:*/libclangCppInterOp.so
+   obj:*/libclangCppInterOp.so
+   obj:*/libclangCppInterOp.so
+}
