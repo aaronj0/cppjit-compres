@@ -1,7 +1,8 @@
 name: Nightly
 
-# The full test matrix on a schedule; pr-nightly.yml also runs it on
-# PRs labeled test-nightly.
+# The full test matrix on a schedule, plus a job building through the
+# CPPINTEROP_SOURCE_DIR knob; pr-nightly.yml also runs it on PRs
+# labeled test-nightly.
 
 on:
   schedule:
@@ -56,9 +57,53 @@ jobs:
       valgrind: ${{ matrix.vg || false }}
       run-xfail-crashing-tests: true
 
+  # Exercises the CPPINTEROP_SOURCE_DIR knob: a CppInterOp checkout at
+  # the pinned tag must build through the source-dir path (the co-develop
+  # flow in the README) and pass a smoke call plus one test file.
+  source-dir-build:
+    name: source-dir/llvm21/py3.12
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          path: cppjit
+      - name: Read the CppInterOp pin
+        id: pin
+        run: |
+          tag=$(sed -n 's/^set(CPPINTEROP_GIT_TAG "\([^"]*\)".*/\1/p' cppjit/CMakeLists.txt)
+          test -n "${tag}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          repository: compiler-research/CppInterOp
+          ref: ${{ steps.pin.outputs.tag }}
+          path: CppInterOp
+      - uses: compiler-research/ci-workflows/actions/setup-llvm@main
+        with:
+          version: '21'
+          os: ubuntu-24.04
+          flavor: system
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Build against the CppInterOp checkout
+        run: >-
+          pip install -v ./cppjit
+          --config-settings=cmake.define.CPPINTEROP_SOURCE_DIR="${GITHUB_WORKSPACE}/CppInterOp"
+      - name: Smoke test
+        working-directory: ${{ runner.temp }}
+        run: python -c 'import cppjit; cppjit.cppdef("int f(int x) { return x + 1; }"); assert cppjit.gbl.f(41) == 42'
+      - name: Run test_basic_api
+        working-directory: cppjit/test
+        run: |
+          pip install -r ../requirements.txt
+          python -m pytest -ra --tb=short test_basic_api.py
+
   drift-issue:
-    needs: build-test
-    if: ${{ always() && needs.build-test.result == 'failure' && github.event_name != 'pull_request' }}
+    needs: [build-test, source-dir-build]
+    if: ${{ always() && contains(needs.*.result, 'failure') && github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
