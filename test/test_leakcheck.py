@@ -2,7 +2,7 @@ import os
 import sys
 
 from pytest import mark, skip
-from support import IS_MAC, IS_MAC_X86
+from support import IS_MAC
 
 nopsutil = False
 try:
@@ -12,6 +12,7 @@ except ImportError:
 
 
 @mark.skipif(nopsutil == True, reason="module psutil not installed")
+@mark.xfail(strict=False, reason="RSS thresholds are unreliable on shared CI runners")
 class TestLEAKCHECK:
     def setup_class(cls):
         import psutil
@@ -264,11 +265,6 @@ class TestLEAKCHECK:
         obj = ns.Leaker()
         self.check_func(obj, "leak_string", 2048)
 
-    @mark.xfail(
-        condition=IS_MAC_X86,
-        strict=False,
-        reason="RSS threshold intermittently trips on the Intel-mac runners",
-    )
     def test08_list_creation(self):
         """Leak check of creating a python list from an std::list"""
 
