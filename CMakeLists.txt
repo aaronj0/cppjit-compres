@@ -14,6 +14,7 @@ set(CPPINTEROP_GIT_REPOSITORY "https://github.com/compiler-research/CppInterOp.g
 set(CPPINTEROP_GIT_TAG "9802d61921ad5688ae42e4e628d754fc1192244d" CACHE STRING "")
 set(CPPINTEROP_SOURCE_DIR "" CACHE PATH
     "Override default CppInterOp built by ExternalProject_Add, with a path to local CppInterOp source")
+option(CPPJIT_COVERAGE "Instrument libcppjit for clang source-based code coverage" OFF)
 
 # The full Development component requires libpython, which manylinux
 # images do not ship and extension modules do not need.
@@ -91,6 +92,19 @@ target_include_directories(cppjit PRIVATE
 target_compile_options(cppjit PRIVATE
     -Wall -Wno-strict-aliasing -Wno-register
 )
+
+if(CPPJIT_COVERAGE)
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        message(FATAL_ERROR "CPPJIT_COVERAGE needs clang (-fprofile-instr-generate); "
+                            "the compiler is ${CMAKE_CXX_COMPILER_ID}")
+    endif()
+    # The tests drive libcppjit from many threads with the GIL released;
+    # atomic updates keep the counters exact.
+    target_compile_options(cppjit PRIVATE
+        -fprofile-instr-generate -fcoverage-mapping -fprofile-update=atomic
+    )
+    target_link_options(cppjit PRIVATE -fprofile-instr-generate)
+endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     target_link_options(cppjit PRIVATE -Wl,-Bsymbolic-functions)
