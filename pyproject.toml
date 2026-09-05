@@ -97,6 +97,13 @@ testpaths = ["test"]
 pythonpath = ["test"]
 xfail_strict = true
 
+[tool.coverage.run]
+source_pkgs = ["cppjit"]
+
+[tool.coverage.paths]
+# The suite imports the installed package; report against the sources.
+cppjit = ["python/cppjit", "*/site-packages/cppjit"]
+
 [tool.ruff]
 show-fixes = true
 
