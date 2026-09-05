@@ -27,15 +27,18 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 authors = [
-    {name = "Aaron Jomy"},
-    {name = "Baidyanath Kundu"},
-    {name = "Jonas Rembser"},
+    {name = "Wim Lavrijsen"},
     {name = "Vassil Vassilev"},
+    {name = "Aaron Jomy"},
     {name = "Vipul Cariappa"},
-    {name = "Wim Lavrijsen"}
+    {name = "Jonas Rembser"},
+    {name = "Baidyanath Kundu"}
 ]
 maintainers = [
-    {name = "Aaron Jomy", email = "aaronjomyjoseph@gmail.com"}
+    {name = "Aaron Jomy", email = "aaronjomyjoseph@gmail.com"},
+    {name = "Jonas Rembser", email = "jonas.rembser@cern.ch"},
+    {name = "Vassil Vassilev", email = "v.g.vassilev@gmail.com"},
+    {name = "Vipul Cariappa", email = "vipulcariappa@gmail.com"}
 ]
 
 [project.urls]
