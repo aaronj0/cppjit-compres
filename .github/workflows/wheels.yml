@@ -5,19 +5,18 @@ name: Wheels
 # linux mounts it into the build container, the same manylinux_2_28 image
 # the toolchain was built on.
 
+# Every code PR and every push to main builds one python per platform
+# with the full suite inside; the `build-wheels` label switches a PR to
+# the full python list plus the sdist install test. Schedule, tags, and
+# dispatch always build the full list.
 on:
   workflow_dispatch:
   pull_request:
-    paths:
-      - '.github/workflows/wheels.yml'
-      - '.github/wheel_smoke.py'
-      - '.github/wheel_contents_check.py'
-      - 'pyproject.toml'
-      - 'CMakeLists.txt'
-      - 'cmake/**'
-      - 'src/interop/**'
-      - 'python/cppjit/_cpython_cppjit.py'
+    types: [opened, synchronize, reopened, labeled]
+    paths-ignore:
+      - 'README.md'
   push:
+    branches: [main]
     tags: ['v*']
   schedule:
     - cron: '30 4 * * 1'
@@ -32,6 +31,9 @@ concurrency:
 jobs:
   wheels:
     name: wheels ${{ matrix.label }}
+    # A labeled event re-runs the workflow only for build-wheels itself;
+    # jobs without a needs edge to this one repeat the guard by alias.
+    if: &label-guard ${{ github.event.action != 'labeled' || github.event.label.name == 'build-wheels' }}
     strategy:
       fail-fast: false
       matrix:
@@ -62,6 +64,17 @@ jobs:
           RECIPE_PATH: ${{ steps.llvm.outputs.path }}
         run: sudo mv "$RECIPE_PATH" /opt/llvm
 
+      # The inverse of test-sdist's full-run condition: plain PRs and
+      # main pushes build one python; schedule, dispatch, tags, and PRs
+      # labeled build-wheels fall through to pyproject's full list.
+      - name: Build one python unless a full run is requested
+        if: >-
+          ${{ !(github.event_name == 'schedule'
+          || github.event_name == 'workflow_dispatch'
+          || startsWith(github.ref, 'refs/tags/')
+          || contains(github.event.pull_request.labels.*.name, 'build-wheels')) }}
+        run: echo 'CIBW_BUILD=cp314-*' >> "$GITHUB_ENV"
+
       - uses: pypa/cibuildwheel@v4.2.0
 
       - name: Assert the build left the checkout clean
@@ -78,6 +91,7 @@ jobs:
 
   sdist:
     name: sdist
+    if: *label-guard
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -96,9 +110,16 @@ jobs:
           if-no-files-found: error
 
   # Build from the sdist and run the full suite against the install.
+  # PR source-build coverage lives in ci.yml; this job rides the full
+  # runs (schedule/tag/dispatch and the build-wheels label).
   test-sdist:
     name: test sdist (build + full suite)
     needs: sdist
+    if: >-
+      ${{ github.event_name == 'schedule'
+      || github.event_name == 'workflow_dispatch'
+      || startsWith(github.ref, 'refs/tags/')
+      || contains(github.event.pull_request.labels.*.name, 'build-wheels') }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
