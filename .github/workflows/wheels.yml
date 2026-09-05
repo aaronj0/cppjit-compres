@@ -37,7 +37,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
+        # One row per shipped wheel; test-relocation reuses this list.
+        include: &platforms
           - { os: ubuntu-24.04,     label: manylinux-x86_64,  arch: x86_64 }
           - { os: ubuntu-24.04-arm, label: manylinux-aarch64, arch: aarch64 }
           - { os: macos-26,         label: macosx-arm64,      arch: arm64 }
@@ -88,6 +89,51 @@ jobs:
           name: wheels-${{ matrix.label }}
           path: wheelhouse/*.whl
           if-no-files-found: error
+
+  # Relocation: each wheel installs and runs the full suite away from its
+  # build machine. The linux image starts bare (g++ because the JIT reads
+  # the host's C++ standard library headers). The label guard reaches
+  # this job through needs.
+  test-relocation:
+    name: test relocation (${{ matrix.label }})
+    needs: wheels
+    strategy:
+      fail-fast: false
+      matrix:
+        include: *platforms
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: wheels-${{ matrix.label }}
+          path: dist
+
+      - name: Install the cp314 wheel and run the suite on python:3.14-slim
+        if: runner.os == 'Linux'
+        run: |
+          docker run --rm -v "$PWD":/src -w /src -e PYTHONSAFEPATH=1 \
+              -e DEBIAN_FRONTEND=noninteractive python:3.14-slim bash -ec '
+              apt-get -qq update && apt-get -qq -y install g++ make libeigen3-dev libboost-dev
+              pip install dist/cppjit-*cp314*.whl -r requirements.txt
+              bash .github/wheel_test.sh'
+
+      - uses: actions/setup-python@v7
+        if: runner.os == 'macOS'
+        with:
+          python-version: '3.14'
+
+      - name: Install the cp314 wheel and run the suite
+        if: runner.os == 'macOS'
+        env:
+          PYTHONSAFEPATH: '1'
+        run: |
+          brew install eigen boost
+          pip install dist/cppjit-*cp314*.whl -r requirements.txt
+          bash .github/wheel_test.sh
 
   sdist:
     name: sdist
