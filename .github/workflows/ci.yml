@@ -17,17 +17,19 @@ concurrency:
 
 jobs:
   build-test:
-    name: ${{ matrix.os }}/llvm${{ matrix.llvm }}/py${{ matrix.py }}/c++${{ matrix.cxx }}${{ matrix.vg && '/vg' || '' }}${{ matrix.flavor == 'cling' && '/cling' || '' }}
+    name: ${{ matrix.os }}/llvm${{ matrix.llvm }}/py${{ matrix.py }}/c++${{ matrix.cxx }}${{ matrix.vg && '/vg' || '' }}${{ matrix.coverage && '/cov' || '' }}${{ matrix.flavor == 'cling' && '/cling' || '' }}
     strategy:
       fail-fast: false
       # Every supported Python against both supported LLVM majors on ubuntu;
       # every supported Python on macOS, alternating the LLVM major; a C++23
       # cell (test_cpp23features runs only there) and a cling cell. Remaining
-      # breadth (C++17, LLVM 20, arm) lives in nightly.
+      # breadth (C++17, LLVM 20, arm) lives in nightly. The coverage cell
+      # compiles with its LLVM's clang, instrumented; the codecov job uploads
+      # its reports.
       matrix:
         include:
           - { os: ubuntu-24.04,   llvm: '21', flavor: system, py: '3.14', cxx: '20', vg: true }
-          - { os: ubuntu-24.04,   llvm: '21', flavor: system, py: '3.13', cxx: '20' }
+          - { os: ubuntu-24.04,   llvm: '21', flavor: system, py: '3.13', cxx: '20', coverage: true }
           - { os: ubuntu-24.04,   llvm: '21', flavor: system, py: '3.12', cxx: '20' }
           - { os: ubuntu-24.04,   llvm: '22', flavor: '',     py: '3.14', cxx: '20' }
           - { os: ubuntu-24.04,   llvm: '22', flavor: '',     py: '3.14', cxx: '23' }
@@ -53,6 +55,7 @@ jobs:
       python-version: ${{ matrix.py }}
       cxx-standard: ${{ matrix.cxx }}
       valgrind: ${{ matrix.vg || false }}
+      coverage: ${{ matrix.coverage || false }}
       run-xfail-crashing-tests: true
 
   report:
@@ -101,3 +104,31 @@ jobs:
             } catch (e) {
               core.warning(`Could not post PR comment (likely a fork PR with a read-only token): ${e.message}`);
             }
+
+  codecov:
+    # Red when the coverage cell produced no reports; that cell's log has the
+    # cause. Fork PRs upload tokenless: the action skips OIDC for them.
+    if: ${{ !cancelled() }}
+    needs: build-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: coverage-*
+          merge-multiple: true
+          path: coverage
+
+      - uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          use_oidc: true
+          files: coverage/cppjit.lcov,coverage/python.xml
+          disable_search: true
+          plugins: noop
+          fail_ci_if_error: true
