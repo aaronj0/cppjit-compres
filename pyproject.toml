@@ -38,6 +38,7 @@ maintainers = [
 [project.urls]
 Homepage = "https://github.com/compiler-research/cppjit"
 Issues = "https://github.com/compiler-research/cppjit/issues"
+Changelog = "https://github.com/compiler-research/cppjit/releases"
 
 [tool.scikit-build]
 minimum-version = "build-system.requires"
