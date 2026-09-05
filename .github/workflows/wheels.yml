@@ -95,44 +95,6 @@ jobs:
           path: dist/*.tar.gz
           if-no-files-found: error
 
-  # Run the full suite on a plain runner, outside the manylinux
-  # container the wheel was built in.
-  test-wheel:
-    name: test wheel (full suite)
-    needs: wheels
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.12'
-
-      - uses: actions/download-artifact@v8
-        with:
-          name: wheels-manylinux-x86_64
-          path: wheelhouse
-
-      - name: Install the test suite's native deps
-        # test_eigen/test_boost need them; the CI cells install the same pair.
-        run: sudo apt-get -q update && sudo apt-get -y install libeigen3-dev libboost-dev
-
-      - name: Install the wheel and the test requirements
-        run: python -m pip install wheelhouse/cppjit-*cp312*.whl -r requirements.txt
-
-      - name: Smoke the wheel outside pytest
-        run: python -X faulthandler .github/wheel_smoke.py
-
-      - name: Run the test suite against the installed wheel
-        env:
-          CPPINTEROP_EXTRA_INTERPRETER_ARGS: -std=c++20
-        run: |
-          cd test
-          make -j$(nproc) PYTHON=python
-          python -m pytest -ra
-
   # Build from the sdist and run the full suite against the install.
   test-sdist:
     name: test sdist (build + full suite)
@@ -173,13 +135,5 @@ jobs:
           --config-settings=cmake.define.Clang_DIR="$RECIPE_PATH/lib/cmake/clang"
           -r requirements.txt
 
-      - name: Smoke the install outside pytest
-        run: python -X faulthandler .github/wheel_smoke.py
-
       - name: Run the test suite against the sdist install
-        env:
-          CPPINTEROP_EXTRA_INTERPRETER_ARGS: -std=c++20
-        run: |
-          cd test
-          make -j$(nproc) PYTHON=python
-          python -m pytest -ra
+        run: bash .github/wheel_test.sh
