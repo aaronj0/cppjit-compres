@@ -21,6 +21,9 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development :: Compilers",
+    "Topic :: Software Development :: Interpreters",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 authors = [
