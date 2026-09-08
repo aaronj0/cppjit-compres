@@ -88,9 +88,17 @@ static PyObject* dm_get(CPPDataMember* dm, CPPInstance* pyobj,
     }
 
     if (interop::IsEnumConstant(dm->fScope)) {
-      // anonymous enum
-      return pyval_from_enum(interop::ResolveEnum(dm->fScope), nullptr, nullptr,
-                             dm->fScope);
+      // anonymous enum; cache the value in fDescription like the named case
+      // above: once kIsEnumPrep is cleared this block is not reached again
+      PyObject* pyval = pyval_from_enum(interop::ResolveEnum(dm->fScope),
+                                        nullptr, nullptr, dm->fScope);
+      if (pyval) {
+        Py_DECREF(dm->fDescription);
+        dm->fDescription = pyval;
+        dm->fFlags |= kIsEnumType;
+        Py_INCREF(pyval);
+        return pyval;
+      }
     }
   }
   // non-initialized or public data accesses through class (e.g. by help())
