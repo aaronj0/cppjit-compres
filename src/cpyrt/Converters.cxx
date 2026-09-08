@@ -2250,8 +2250,19 @@ PyObject* cpyrt::InstancePtrConverter<ISCONST>::FromMemory(void* address) {
   // construct python object from C++ instance read at <address>
   if (ISCONST)
     return BindCppObject(*(void**)address, fClass); // by pointer value
-  return BindCppObject(address, fClass,
-                       CPPInstance::kIsReference); // modifiable
+
+  // a writable pointer variable's proxy tracks the pointer itself, so it can
+  // only down-cast where the actual class shares the address; abstract
+  // declared types stay put as Python may replace the pointee (see test21)
+  void* pobj = *(void**)address;
+  interop::TCppScope_t klass = fClass;
+  if (pobj && !interop::IsAbstract(fClass)) {
+    interop::TCppScope_t actual = interop::GetActualClass(fClass, pobj);
+    if (actual && actual != fClass &&
+        interop::GetBaseOffset(actual, fClass, pobj, -1 /* down-cast */) == 0)
+      klass = actual;
+  }
+  return BindCppObject(address, klass, CPPInstance::kIsReference); // modifiable
 }
 
 //----------------------------------------------------------------------------

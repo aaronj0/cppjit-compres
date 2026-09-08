@@ -750,6 +750,36 @@ class TestADVANCEDCPP:
         assert len(cppjit.gbl.gtestv1) == 1
         assert len(cppjit.gbl.gtestv2) == 1
 
+    def test21a_autocast_pointer_variables(self):
+        """Pointer variables read from memory down-cast to the actual class"""
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        namespace AutoCastMem {
+            struct B { virtual ~B() {} int x = 1; };
+            struct D : B { int y = 2; };
+            struct Other { virtual ~Other() {} int o = 7; };
+            struct MI : Other, B { int z = 3; };
+            D g_d;
+            MI g_mi;
+            B* g_ptr = &g_d;
+            B* g_mi_ptr = &g_mi;
+            B* g_null = nullptr;
+        }""")
+
+        ns = cppjit.gbl.AutoCastMem
+
+        assert type(ns.g_ptr) is ns.D
+        assert ns.g_ptr.y == 2
+
+        # a non-primary base has its own address, so the proxy stays at B
+        mi = ns.g_mi_ptr
+        assert type(mi) is ns.B
+        assert mi.x == 1
+
+        assert not ns.g_null
+
     @mark.xfail(
         condition=IS_MAC_ARM,
         run=False,
