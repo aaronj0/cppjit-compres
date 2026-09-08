@@ -74,6 +74,27 @@ class TestTEMPLATES:
         assert "get_size<MyTMCTypedef_t>" in dir(cppjit.gbl.MyTemplatedMethodClass)
         assert m.get_size["MyTemplatedMethodClass"]() == m.get_self_size()
 
+    def test01a_template_args_dunder(self):
+        """__template_args__ reflects the instantiation; __overload__ takes one"""
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        namespace TplArgs {
+        struct Holder {
+            template<class T> T pass_through(T v) { return v; }
+        }; }""")
+
+        h = cppjit.gbl.TplArgs.Holder()
+        tmpl = type(h).pass_through
+        assert tmpl.__template_args__ is None
+        inst = tmpl["int"]
+        assert inst.__template_args__ == "<int>"
+        assert h.pass_through["int"](3) == 3
+
+        m = h.pass_through.__overload__("double", "double")
+        assert m(h, 2.5) == 2.5
+
     def test02_non_type_template_args(self):
         """Use of non-types as template arguments"""
 
