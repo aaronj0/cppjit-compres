@@ -76,6 +76,8 @@ if "win32" in sys.platform:
     else:
         IS_WINDOWS = 32
 
+soext = ".dll" if IS_WINDOWS else ".so"
+
 IS_MAC_ARM = 0
 IS_MAC_X86 = 0
 if "darwin" in sys.platform:
