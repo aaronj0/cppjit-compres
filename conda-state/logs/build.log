@@ -1,0 +1,1629 @@
++ cd /home/maximus/cppjit-conda
++ docker run --rm -v /home/maximus/cppjit-conda:/cf ghcr.io/prefix-dev/rattler-build:latest build --recipe /cf/recipes/cppjit/recipe.yaml --variant-config /cf/variant-local.yaml -c conda-forge --output-dir /cf/output
+Unable to find image 'ghcr.io/prefix-dev/rattler-build:latest' locally
+docker: Error response from daemon: Head "https://ghcr.io/v2/prefix-dev/rattler-build/manifests/latest": denied
+
+Run 'docker run --help' for more information
++ echo 'prefix-dev image path failed (rc=125), trying miniforge3'
+prefix-dev image path failed (rc=125), trying miniforge3
++ docker run --rm -v /home/maximus/cppjit-conda:/cf -w /cf docker.io/condaforge/miniforge3:latest bash -lc '
+    set -e
+    conda install -y -n base -c conda-forge rattler-build
+    rattler-build build --recipe /cf/recipes/cppjit/recipe.yaml \
+      --variant-config /cf/variant-local.yaml \
+      -c conda-forge --output-dir /cf/output
+  '
+Retrieving notices: ...working... done
+Channels:
+ - conda-forge
+Platform: linux-64
+Collecting package metadata (repodata.json): ...working... done
+Solving environment: ...working... done
+
+## Package Plan ##
+
+  environment location: /opt/conda
+
+  added / updated specs:
+    - rattler-build
+
+
+The following packages will be downloaded:
+
+    package                    |            build
+    ---------------------------|-----------------
+    patchelf-0.19.1            |       hee9eb32_1         149 KB  conda-forge
+    rattler-build-0.76.1       |       hf01adef_0        18.7 MB  conda-forge
+    ------------------------------------------------------------
+                                           Total:        18.8 MB
+
+The following NEW packages will be INSTALLED:
+
+  patchelf           conda-forge/linux-64::patchelf-0.19.1-hee9eb32_1 
+  rattler-build      conda-forge/linux-64::rattler-build-0.76.1-hf01adef_0 
+
+
+
+Downloading and Extracting Packages: ...working... done
+Preparing transaction: ...working... done
+Verifying transaction: ...working... done
+Executing transaction: ...working... done
+ rattler-build 0.76.1
+ No configuration file loaded
+ Processing recipe at path: /cf/recipes/cppjit/recipe.yaml
+
+ ╭─ Finding outputs from recipe
+ │ Loading variant config from: /cf/variant-local.yaml
+ │ Found 1 variants
+ │ 
+ │ Build variant: cppjit-0.1.0a1-py313h67a92c2_0
+ │ 
+ │ ╭──────────────────┬────────────╮
+ │ │ Variant          ┆ Version    │
+ │ ╞══════════════════╪════════════╡
+ │ │ build_platform   ┆ "linux-64" │
+ │ │ c_stdlib         ┆ "sysroot"  │
+ │ │ c_stdlib_version ┆ "2.17"     │
+ │ │ cxx_compiler     ┆ "gxx"      │
+ │ │ python           ┆ "3.13.*"   │
+ │ │ target_platform  ┆ "linux-64" │
+ │ ╰──────────────────┴────────────╯
+ │
+ ╰─────────────────── (took 0 seconds)
+ Starting build of 1 outputs
+
+ ╭─ Running build for recipe: cppjit-0.1.0a1-py313h67a92c2_0
+ │
+ │ ╭─ Fetching source code
+ │ │ Fetching source from url: https://pypi.org/packages/source/c/cppjit/cppjit-0.1.0a1.tar.gz
+ │ │ Found extracted source in cache: /cf/output/src_cache/6df9bde1f2fee545_extracted
+ │ │ Copying source from cache: /cf/output/src_cache/6df9bde1f2fee545_extracted to /cf/output/bld/rattler-build_cppjit_1789472905/work
+ │ │ Fetching source from url: https://github.com/compiler-research/CppInterOp/archive/9802d61921ad5688ae42e4e628d754fc1192244d.tar.gz
+ │ │ Found extracted source in cache: /cf/output/src_cache/90a3099dc6628d4b_extracted
+ │ │ Copying source from cache: /cf/output/src_cache/90a3099dc6628d4b_extracted to /cf/output/bld/rattler-build_cppjit_1789472905/work/cppinterop-src
+ │ │
+ │ ╰─────────────────── (took 0 seconds)
+ │
+ │ ╭─ Resolving build environment
+ │ │   Platform: linux-64 [__unix=0=0, __linux=7.0.0=0, __glibc=2.39=0, __archspec=1=zen4]
+ │ │   Channels: 
+ │ │    - file:///cf/output/
+ │ │    - conda-forge
+ │ │   Specs:
+ │ │    - gxx_linux-64
+ │ │    - sysroot_linux-64 2.17.*
+ │ │    - cmake
+ │ │    - ninja
+ │ │    - lld
+ │ │ 
+ │ │ ╭──────────────────────────┬──────────────┬──────────────────────┬─────────────┬────────────╮
+ │ │ │ Package                  ┆ Version      ┆ Build                ┆ Channel     ┆       Size │
+ │ │ ╞══════════════════════════╪══════════════╪══════════════════════╪═════════════╪════════════╡
+ │ │ │ _openmp_mutex            ┆ 4.5          ┆ 20_gnu               ┆ conda-forge ┆  28.27 KiB │
+ │ │ │ binutils_impl_linux-64   ┆ 2.46.1       ┆ default_hfdba357_102 ┆ conda-forge ┆   3.54 MiB │
+ │ │ │ binutils_linux-64        ┆ 2.46.1       ┆ default_h4852527_102 ┆ conda-forge ┆  35.49 KiB │
+ │ │ │ bzip2                    ┆ 1.0.8        ┆ hda65f42_10          ┆ conda-forge ┆ 251.77 KiB │
+ │ │ │ c-ares                   ┆ 1.34.8       ┆ hebe6cf0_2           ┆ conda-forge ┆ 223.34 KiB │
+ │ │ │ ca-certificates          ┆ 2026.7.22    ┆ hbd8a1cb_0           ┆ conda-forge ┆ 128.69 KiB │
+ │ │ │ cmake                    ┆ 4.4.3        ┆ hff7ac6b_0           ┆ conda-forge ┆  24.87 MiB │
+ │ │ │ gcc_impl_linux-64        ┆ 16.2.0       ┆ h176d5d0_4           ┆ conda-forge ┆  82.47 MiB │
+ │ │ │ gcc_linux-64             ┆ 16.2.0       ┆ h0ab548f_1           ┆ conda-forge ┆  29.08 KiB │
+ │ │ │ gxx_impl_linux-64        ┆ 16.2.0       ┆ h0d273dc_4           ┆ conda-forge ┆  16.85 MiB │
+ │ │ │ gxx_linux-64             ┆ 16.2.0       ┆ h38dc33c_1           ┆ conda-forge ┆  27.50 KiB │
+ │ │ │ icu                      ┆ 78.3         ┆ py310h44b86e0_2      ┆ conda-forge ┆  13.79 MiB │
+ │ │ │ kernel-headers_linux-64  ┆ 3.10.0       ┆ he073ed8_18          ┆ conda-forge ┆ 921.37 KiB │
+ │ │ │ keyutils                 ┆ 1.6.3        ┆ h7cc23a3_1           ┆ conda-forge ┆ 132.12 KiB │
+ │ │ │ krb5                     ┆ 1.22.2       ┆ hbc21106_2           ┆ conda-forge ┆   1.33 MiB │
+ │ │ │ ld_impl_linux-64         ┆ 2.46.1       ┆ default_hbd61a6d_102 ┆ conda-forge ┆ 727.83 KiB │
+ │ │ │ libcurl                  ┆ 8.22.0       ┆ ha042cf0_0           ┆ conda-forge ┆ 487.94 KiB │
+ │ │ │ libedit                  ┆ 3.1.20250104 ┆ pl5321h373387f_1     ┆ conda-forge ┆ 131.93 KiB │
+ │ │ │ libev                    ┆ 4.33         ┆ h280c20c_3           ┆ conda-forge ┆  42.21 KiB │
+ │ │ │ libexpat                 ┆ 2.8.1        ┆ hecca717_1           ┆ conda-forge ┆  76.03 KiB │
+ │ │ │ libgcc                   ┆ 16.2.0       ┆ ha9f2e26_4           ┆ conda-forge ┆   1.01 MiB │
+ │ │ │ libgcc-devel_linux-64    ┆ 16.2.0       ┆ he3ce08f_104         ┆ conda-forge ┆   2.95 MiB │
+ │ │ │ libgomp                  ┆ 16.2.0       ┆ he0feb66_4           ┆ conda-forge ┆ 624.97 KiB │
+ │ │ │ libiconv                 ┆ 1.18         ┆ h0cb94f2_3           ┆ conda-forge ┆ 770.97 KiB │
+ │ │ │ libllvm23                ┆ 23.1.1       ┆ h474f4eb_0           ┆ conda-forge ┆  42.98 MiB │
+ │ │ │ liblzma                  ┆ 5.8.3        ┆ hb03c661_1           ┆ conda-forge ┆ 110.35 KiB │
+ │ │ │ libnghttp2               ┆ 1.68.1       ┆ h74cf4be_1           ┆ conda-forge ┆ 634.74 KiB │
+ │ │ │ libpsl                   ┆ 0.23.1       ┆ hd9e3e90_1           ┆ conda-forge ┆  70.82 KiB │
+ │ │ │ libsanitizer             ┆ 16.2.0       ┆ h3048135_4           ┆ conda-forge ┆   7.81 MiB │
+ │ │ │ libssh2                  ┆ 1.11.1       ┆ h6154650_1           ┆ conda-forge ┆ 298.87 KiB │
+ │ │ │ libstdcxx                ┆ 16.2.0       ┆ h934c35e_4           ┆ conda-forge ┆   6.31 MiB │
+ │ │ │ libstdcxx-devel_linux-64 ┆ 16.2.0       ┆ h86e191b_104         ┆ conda-forge ┆  21.41 MiB │
+ │ │ │ libuv                    ┆ 1.52.1       ┆ h280c20c_1           ┆ conda-forge ┆ 410.20 KiB │
+ │ │ │ libxml2                  ┆ 2.15.4       ┆ h7df9aa5_0           ┆ conda-forge ┆  45.97 KiB │
+ │ │ │ libxml2-16               ┆ 2.15.4       ┆ hf3af7cc_0           ┆ conda-forge ┆ 555.86 KiB │
+ │ │ │ libzlib                  ┆ 1.3.2        ┆ h25fd6f3_3           ┆ conda-forge ┆  62.22 KiB │
+ │ │ │ lld                      ┆ 23.1.1       ┆ h5985d43_0           ┆ conda-forge ┆  11.48 MiB │
+ │ │ │ ncurses                  ┆ 6.6          ┆ hdb14827_1           ┆ conda-forge ┆ 889.84 KiB │
+ │ │ │ ninja                    ┆ 1.13.2       ┆ h171cf75_1           ┆ conda-forge ┆ 182.39 KiB │
+ │ │ │ openssl                  ┆ 3.6.4        ┆ h781a0a9_0           ┆ conda-forge ┆   3.05 MiB │
+ │ │ │ rhash                    ┆ 1.4.6        ┆ hb03c661_2           ┆ conda-forge ┆ 190.42 KiB │
+ │ │ │ sysroot_linux-64         ┆ 2.17         ┆ h0157908_18          ┆ conda-forge ┆  14.46 MiB │
+ │ │ │ tzdata                   ┆ 2026c        ┆ h151e31d_0           ┆ conda-forge ┆ 116.06 KiB │
+ │ │ │ zstd                     ┆ 1.5.7        ┆ hb78ec9c_7           ┆ conda-forge ┆ 587.21 KiB │
+ │ │ ╰──────────────────────────┴──────────────┴──────────────────────┴─────────────┴────────────╯
+ │ │
+ │ ╰─────────────────── (took 0 seconds)
+ │
+ │ ╭─ Resolving host environment
+ │ │   Platform: linux-64 [__unix=0=0, __linux=7.0.0=0, __glibc=2.39=0, __archspec=1=zen4]
+ │ │   Channels: 
+ │ │    - file:///cf/output/
+ │ │    - conda-forge
+ │ │   Specs:
+ │ │    - python 3.13.*
+ │ │    - pip
+ │ │    - scikit-build-core >=1.0
+ │ │    - llvmdev 21.*
+ │ │    - clangdev 21.*
+ │ │    - zlib
+ │ │    - libxml2
+ │ │    - zstd
+ │ │    - __glibc >=2.17,<3.0.a0
+ │ │    - libstdcxx >=16
+ │ │    - libgcc >=16
+ │ │ 
+ │ │ ╭──────────────────────────┬───────────┬────────────────────────┬─────────────┬────────────╮
+ │ │ │ Package                  ┆ Version   ┆ Build                  ┆ Channel     ┆       Size │
+ │ │ ╞══════════════════════════╪═══════════╪════════════════════════╪═════════════╪════════════╡
+ │ │ │ _openmp_mutex            ┆ 4.5       ┆ 20_gnu                 ┆ conda-forge ┆  28.27 KiB │
+ │ │ │ binutils                 ┆ 2.46.1    ┆ default_h4852527_102   ┆ conda-forge ┆  34.57 KiB │
+ │ │ │ binutils_impl_linux-64   ┆ 2.46.1    ┆ default_hfdba357_102   ┆ conda-forge ┆   3.54 MiB │
+ │ │ │ bzip2                    ┆ 1.0.8     ┆ hda65f42_10            ┆ conda-forge ┆ 251.77 KiB │
+ │ │ │ ca-certificates          ┆ 2026.7.22 ┆ hbd8a1cb_0             ┆ conda-forge ┆ 128.69 KiB │
+ │ │ │ clang                    ┆ 21.1.8    ┆ default_cfg_hfed155c_6 ┆ conda-forge ┆  27.94 KiB │
+ │ │ │ clang-21                 ┆ 21.1.8    ┆ default_h6209e06_6     ┆ conda-forge ┆ 811.97 KiB │
+ │ │ │ clang-format             ┆ 21.1.8    ┆ default_hbe8b877_6     ┆ conda-forge ┆  27.42 KiB │
+ │ │ │ clang-format-21          ┆ 21.1.8    ┆ default_h6209e06_6     ┆ conda-forge ┆  69.30 KiB │
+ │ │ │ clang-scan-deps          ┆ 21.1.8    ┆ default_h6209e06_6     ┆ conda-forge ┆ 102.19 KiB │
+ │ │ │ clang-tools              ┆ 21.1.8    ┆ default_h5c1a867_6     ┆ conda-forge ┆  21.26 MiB │
+ │ │ │ clang_impl_linux-64      ┆ 21.1.8    ┆ default_hbd963a2_6     ┆ conda-forge ┆  27.54 KiB │
+ │ │ │ clangdev                 ┆ 21.1.8    ┆ default_haeba491_6     ┆ conda-forge ┆  49.84 MiB │
+ │ │ │ clangxx                  ┆ 21.1.8    ┆ default_cfg_hfed155c_6 ┆ conda-forge ┆  27.77 KiB │
+ │ │ │ clangxx_impl_linux-64    ┆ 21.1.8    ┆ default_hbd963a2_6     ┆ conda-forge ┆  27.48 KiB │
+ │ │ │ compiler-rt              ┆ 21.1.8    ┆ ha770c72_2             ┆ conda-forge ┆  15.84 KiB │
+ │ │ │ compiler-rt21            ┆ 21.1.8    ┆ h7148c6a_2             ┆ conda-forge ┆ 112.19 KiB │
+ │ │ │ compiler-rt21_linux-64   ┆ 21.1.8    ┆ h0e38de2_2             ┆ conda-forge ┆  44.25 MiB │
+ │ │ │ compiler-rt_linux-64     ┆ 21.1.8    ┆ ha770c72_2             ┆ conda-forge ┆  15.85 KiB │
+ │ │ │ exceptiongroup           ┆ 1.3.1     ┆ pyhd8ed1ab_0           ┆ conda-forge ┆  20.83 KiB │
+ │ │ │ importlib-resources      ┆ 7.1.0     ┆ pyhd8ed1ab_0           ┆ conda-forge ┆  10.11 KiB │
+ │ │ │ importlib_resources      ┆ 7.1.0     ┆ pyhd8ed1ab_0           ┆ conda-forge ┆  33.99 KiB │
+ │ │ │ kernel-headers_linux-64  ┆ 6.12.0    ┆ he073ed8_6             ┆ conda-forge ┆   1.47 MiB │
+ │ │ │ ld_impl_linux-64         ┆ 2.46.1    ┆ default_hbd61a6d_102   ┆ conda-forge ┆ 727.83 KiB │
+ │ │ │ libclang                 ┆ 21.1.8    ┆ default_hbe8b877_6     ┆ conda-forge ┆  27.45 KiB │
+ │ │ │ libclang-cpp             ┆ 21.1.8    ┆ default_hbe8b877_6     ┆ conda-forge ┆  27.47 KiB │
+ │ │ │ libclang-cpp21.1         ┆ 21.1.8    ┆ default_h6209e06_6     ┆ conda-forge ┆  20.48 MiB │
+ │ │ │ libclang13               ┆ 21.1.8    ┆ default_h792aff9_6     ┆ conda-forge ┆  12.02 MiB │
+ │ │ │ libcompiler-rt           ┆ 21.1.8    ┆ h7148c6a_2             ┆ conda-forge ┆   9.79 MiB │
+ │ │ │ libexpat                 ┆ 2.8.1     ┆ hecca717_1             ┆ conda-forge ┆  76.03 KiB │
+ │ │ │ libffi                   ┆ 3.7.0     ┆ h81df57d_1             ┆ conda-forge ┆  66.41 KiB │
+ │ │ │ libgcc                   ┆ 16.2.0    ┆ ha9f2e26_4             ┆ conda-forge ┆   1.01 MiB │
+ │ │ │ libgcc-devel_linux-64    ┆ 16.2.0    ┆ he3ce08f_104           ┆ conda-forge ┆   2.95 MiB │
+ │ │ │ libgomp                  ┆ 16.2.0    ┆ he0feb66_4             ┆ conda-forge ┆ 624.97 KiB │
+ │ │ │ libiconv                 ┆ 1.18      ┆ h0cb94f2_3             ┆ conda-forge ┆ 770.97 KiB │
+ │ │ │ libllvm21                ┆ 21.1.8    ┆ h474f4eb_1             ┆ conda-forge ┆  42.72 MiB │
+ │ │ │ liblzma                  ┆ 5.8.3     ┆ hb03c661_1             ┆ conda-forge ┆ 110.35 KiB │
+ │ │ │ libmpdec                 ┆ 4.0.0     ┆ hb03c661_2             ┆ conda-forge ┆  90.58 KiB │
+ │ │ │ libpython                ┆ 3.13.15   ┆ hdc7f604_103_cp313     ┆ conda-forge ┆   9.26 MiB │
+ │ │ │ libsqlite                ┆ 3.53.4    ┆ h0737f62_1             ┆ conda-forge ┆ 946.18 KiB │
+ │ │ │ libstdcxx                ┆ 16.2.0    ┆ h934c35e_4             ┆ conda-forge ┆   6.31 MiB │
+ │ │ │ libstdcxx-devel_linux-64 ┆ 16.2.0    ┆ h86e191b_104           ┆ conda-forge ┆  21.41 MiB │
+ │ │ │ libuuid                  ┆ 2.42.3    ┆ hcfc3c73_0             ┆ conda-forge ┆  39.06 KiB │
+ │ │ │ libxml2                  ┆ 2.15.4    ┆ ha7a5771_0             ┆ conda-forge ┆  45.85 KiB │
+ │ │ │ libxml2-16               ┆ 2.15.4    ┆ hbdfff7e_0             ┆ conda-forge ┆ 552.46 KiB │
+ │ │ │ libzlib                  ┆ 1.3.2     ┆ h25fd6f3_3             ┆ conda-forge ┆  62.22 KiB │
+ │ │ │ llvm-openmp              ┆ 23.1.1    ┆ h7148c6a_0             ┆ conda-forge ┆   5.84 MiB │
+ │ │ │ llvm-tools               ┆ 21.1.8    ┆ h7148c6a_1             ┆ conda-forge ┆  86.61 KiB │
+ │ │ │ llvm-tools-21            ┆ 21.1.8    ┆ h7399f5f_1             ┆ conda-forge ┆  25.38 MiB │
+ │ │ │ llvmdev                  ┆ 21.1.8    ┆ h7399f5f_1             ┆ conda-forge ┆  64.53 MiB │
+ │ │ │ ncurses                  ┆ 6.6       ┆ hdb14827_1             ┆ conda-forge ┆ 889.84 KiB │
+ │ │ │ openssl                  ┆ 3.6.4     ┆ h781a0a9_0             ┆ conda-forge ┆   3.05 MiB │
+ │ │ │ packaging                ┆ 26.3      ┆ pyhc364b38_0           ┆ conda-forge ┆ 113.64 KiB │
+ │ │ │ pathspec                 ┆ 1.1.1     ┆ pyhd8ed1ab_0           ┆ conda-forge ┆  55.23 KiB │
+ │ │ │ pip                      ┆ 26.2.1    ┆ pyh145f28c_0           ┆ conda-forge ┆   1.14 MiB │
+ │ │ │ python                   ┆ 3.13.15   ┆ hf47f18c_103_cp313     ┆ conda-forge ┆  23.24 MiB │
+ │ │ │ python_abi               ┆ 3.13      ┆ 9_cp313                ┆ conda-forge ┆   6.61 KiB │
+ │ │ │ readline                 ┆ 8.3       ┆ hd6e31c0_1             ┆ conda-forge ┆ 340.72 KiB │
+ │ │ │ scikit-build-core        ┆ 1.0.3     ┆ pyh04d0eab_0           ┆ conda-forge ┆ 331.64 KiB │
+ │ │ │ sysroot_linux-64         ┆ 2.39      ┆ hc4b9eeb_6             ┆ conda-forge ┆  40.10 MiB │
+ │ │ │ tk                       ┆ 8.6.13    ┆ noxft_h1df4ec4_4       ┆ conda-forge ┆   3.40 MiB │
+ │ │ │ tomli                    ┆ 2.4.1     ┆ pyhcf101f3_0           ┆ conda-forge ┆  21.06 KiB │
+ │ │ │ typing_extensions        ┆ 4.16.0    ┆ pyhcf101f3_0           ┆ conda-forge ┆  51.40 KiB │
+ │ │ │ tzdata                   ┆ 2026c     ┆ h151e31d_0             ┆ conda-forge ┆ 116.06 KiB │
+ │ │ │ zipp                     ┆ 4.1.0     ┆ pyhcf101f3_0           ┆ conda-forge ┆  23.62 KiB │
+ │ │ │ zlib                     ┆ 1.3.2     ┆ h25fd6f3_3             ┆ conda-forge ┆  93.88 KiB │
+ │ │ │ zstd                     ┆ 1.5.7     ┆ hb78ec9c_7             ┆ conda-forge ┆ 587.21 KiB │
+ │ │ ╰──────────────────────────┴───────────┴────────────────────────┴─────────────┴────────────╯
+ │ │
+ │ ╰─────────────────── (took 0 seconds)
+ │ 
+ │ Finalized run dependencies (cppjit-0.1.0a1-py313h67a92c2_0):
+ │ ╭──────────────────┬──────────────────────────────────────────────────╮
+ │ │ Name             ┆ Spec                                             │
+ │ ╞══════════════════╪══════════════════════════════════════════════════╡
+ │ │ Run dependencies ┆                                                  │
+ │ │ __glibc          ┆ >=2.17,<3.0.a0 (RE of [build: sysroot_linux-64]) │
+ │ │ cxx-compiler     ┆ *                                                │
+ │ │ libgcc           ┆ >=16 (RE of [build: gxx_linux-64])               │
+ │ │ libstdcxx        ┆ >=16 (RE of [build: gxx_linux-64])               │
+ │ │ libxml2          ┆ (RE of [host: libxml2])                          │
+ │ │ libxml2-16       ┆ >=2.15.4 (RE of [host: libxml2])                 │
+ │ │ libzlib          ┆ >=1.3.2,<2.0a0 (RE of [host: zlib])              │
+ │ │ python           ┆ *                                                │
+ │ │ python_abi       ┆ 3.13.* *_cp313 (RE of [host: python])            │
+ │ │ zstd             ┆ >=1.5.7,<1.6.0a0 (RE of [host: zstd])            │
+ │ ╰──────────────────┴──────────────────────────────────────────────────╯
+ │
+ │ ╭─ Installing build environment
+ │ │ ✔ Successfully updated the build environment
+ │ │
+ │ ╰─────────────────── (took 2 seconds)
+ │
+ │ ╭─ Installing host environment
+ │ │ ✔ Successfully updated the host environment
+ │ │
+ │ ╰─────────────────── (took 2 seconds)
+ │
+ │ ╭─ Running build script
+ │ │ INFO: activate-binutils_linux-64.sh made the following environmental changes:
+ │ │ +ADDR2LINE=x86_64-conda-linux-gnu-addr2line
+ │ │ +AR=x86_64-conda-linux-gnu-ar
+ │ │ +AS=x86_64-conda-linux-gnu-as
+ │ │ +CXXFILT=x86_64-conda-linux-gnu-c++filt
+ │ │ +ELFEDIT=x86_64-conda-linux-gnu-elfedit
+ │ │ +GPROF=x86_64-conda-linux-gnu-gprof
+ │ │ +LD=x86_64-conda-linux-gnu-ld
+ │ │ +NM=x86_64-conda-linux-gnu-nm
+ │ │ +OBJCOPY=x86_64-conda-linux-gnu-objcopy
+ │ │ +OBJDUMP=x86_64-conda-linux-gnu-objdump
+ │ │ +RANLIB=x86_64-conda-linux-gnu-ranlib
+ │ │ +READELF=x86_64-conda-linux-gnu-readelf
+ │ │ +SIZE=x86_64-conda-linux-gnu-size
+ │ │ +STRINGS=x86_64-conda-linux-gnu-strings
+ │ │ +STRIP=x86_64-conda-linux-gnu-strip
+ │ │ INFO: activate-gcc_linux-64.sh made the following environmental changes:
+ │ │ +BUILD=x86_64-conda-linux-gnu
+ │ │ +CC=x86_64-conda-linux-gnu-cc
+ │ │ +CC_FOR_BUILD=x86_64-conda-linux-gnu-cc
+ │ │ +CFLAGS=-march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -fno-merge-constants -isystem $
+ │ │ PREFIX/include -fdebug-prefix-map=$SRC_DIR=/usr/local/src/conda/cppjit-0.1.0a1 -fdebug-prefix-map=$PREFIX=/usr/local/src/conda-prefix
+ │ │ +CMAKE_ARGS=-DCMAKE_AR=$BUILD_PREFIX/bin/x86_64-conda-linux-gnu-ar -DCMAKE_CXX_COMPILER_AR=$BUILD_PREFIX/bin/x86_64-conda-linux-gnu-gcc-ar -DCMAKE_C_COMPIL
+ │ │ ER_AR=$BUILD_PREFIX/bin/x86_64-conda-linux-gnu-gcc-ar -DCMAKE_RANLIB=$BUILD_PREFIX/bin/x86_64-conda-linux-gnu-ranlib -DCMAKE_CXX_COMPILER_RANLIB=$BUILD_PRE
+ │ │ FIX/bin/x86_64-conda-linux-gnu-gcc-ranlib -DCMAKE_C_COMPILER_RANLIB=$BUILD_PREFIX/bin/x86_64-conda-linux-gnu-gcc-ranlib -DCMAKE_LINKER=$BUILD_PREFIX/bin/x8
+ │ │ 6_64-conda-linux-gnu-ld -DCMAKE_STRIP=$BUILD_PREFIX/bin/x86_64-conda-linux-gnu-strip -DCMAKE_BUILD_TYPE=Release -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER -
+ │ │ DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY -DCMAKE_FIND_ROOT_PATH=$PREFIX;$BUILD_PREFIX/x86_64-conda-linux-gnu/sysroo
+ │ │ t -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_PROGRAM_PATH=$BUILD_PREFIX/bin;$PREFIX/bin -DCMAKE_POLICY_DEFAULT_CMP0094=NEW
+ │ │ +CMAKE_PREFIX_PATH=$PREFIX:$BUILD_PREFIX/x86_64-conda-linux-gnu/sysroot/usr
+ │ │ +CONDA_BUILD_CROSS_COMPILATION=
+ │ │ +CONDA_BUILD_SYSROOT=$BUILD_PREFIX/x86_64-conda-linux-gnu/sysroot
+ │ │ +CONDA_TOOLCHAIN_BUILD=x86_64-conda-linux-gnu
+ │ │ +CONDA_TOOLCHAIN_HOST=x86_64-conda-linux-gnu
+ │ │ +CPP=x86_64-conda-linux-gnu-cpp
+ │ │ +CPPFLAGS=-DNDEBUG -D_FORTIFY_SOURCE=2 -O2 -isystem $PREFIX/include
+ │ │ +CPP_FOR_BUILD=x86_64-conda-linux-gnu-cpp
+ │ │ +DEBUG_CFLAGS=-march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-all -fno-plt -Og -g -Wall -Wextra -fvar-tracking-assignments -ffunction
+ │ │ -sections -pipe -fno-merge-constants -isystem $PREFIX/include -fdebug-prefix-map=$SRC_DIR=/usr/local/src/conda/cppjit-0.1.0a1 -fdebug-prefix-map=$PREFIX=/u
+ │ │ sr/local/src/conda-prefix
+ │ │ +DEBUG_CPPFLAGS=-D_DEBUG -D_FORTIFY_SOURCE=2 -Og -isystem $PREFIX/include
+ │ │ +GCC=x86_64-conda-linux-gnu-gcc
+ │ │ +GCC_AR=x86_64-conda-linux-gnu-gcc-ar
+ │ │ +GCC_NM=x86_64-conda-linux-gnu-gcc-nm
+ │ │ +GCC_RANLIB=x86_64-conda-linux-gnu-gcc-ranlib
+ │ │ +HOST=x86_64-conda-linux-gnu
+ │ │ +LDFLAGS=-Wl,-O2 -Wl,--sort-common -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,--disable-new-dtags -Wl,--gc-sections -Wl,--allow-shlib-undefined -Wl,-rpath
+ │ │ ,$PREFIX/lib -Wl,-rpath-link,$PREFIX/lib -L$PREFIX/lib
+ │ │ +LDFLAGS_LD=-O2 --sort-common --as-needed -z relro -z now --disable-new-dtags --gc-sections --allow-shlib-undefined -rpath $PREFIX/lib -rpath-link $PREFIX/
+ │ │ lib -L$PREFIX/lib
+ │ │ +MESON_ARGS=-Dbuildtype=release --prefix=$PREFIX -Dlibdir=lib
+ │ │ +build_alias=x86_64-conda-linux-gnu
+ │ │ +host_alias=x86_64-conda-linux-gnu
+ │ │ -BUILD=x86_64-conda_cos6-linux-gnu
+ │ │ -CONDA_BUILD_CROSS_COMPILATION=0
+ │ │ INFO: activate-gxx_linux-64.sh made the following environmental changes:
+ │ │ +CXX=x86_64-conda-linux-gnu-c++
+ │ │ +CXXFLAGS=-fvisibility-inlines-hidden -fmessage-length=0 -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffuncti
+ │ │ on-sections -pipe -fno-merge-constants -isystem $PREFIX/include -fdebug-prefix-map=$SRC_DIR=/usr/local/src/conda/cppjit-0.1.0a1 -fdebug-prefix-map=$PREFIX=
+ │ │ /usr/local/src/conda-prefix
+ │ │ +CXX_FOR_BUILD=x86_64-conda-linux-gnu-c++
+ │ │ + export 'LDFLAGS=-Wl,-O2 -Wl,--sort-common -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,--disable-new-dtags -Wl,--gc-sections -Wl,--allow-shlib-undefined -
+ │ │ Wl,-rpath,$PREFIX/lib -Wl,-rpath-link,$PREFIX/lib -L$PREFIX/lib -fuse-ld=lld'
+ │ │ + LDFLAGS='-Wl,-O2 -Wl,--sort-common -Wl,--as-needed -Wl,-z,relro -Wl,-z,now -Wl,--disable-new-dtags -Wl,--gc-sections -Wl,--allow-shlib-undefined -Wl,-rpa
+ │ │ th,$PREFIX/lib -Wl,-rpath-link,$PREFIX/lib -L$PREFIX/lib -fuse-ld=lld'
+ │ │ + export CMAKE_GENERATOR=Ninja
+ │ │ + CMAKE_GENERATOR=Ninja
+ │ │ + python -m pip install . -vv --no-deps --no-build-isolation -Ccmake.define.CPPINTEROP_SOURCE_DIR=$SRC_DIR/cppinterop-src -Ccmake.define.LLVM_DIR=$PREFIX/l
+ │ │ ib/cmake/llvm -Ccmake.define.Clang_DIR=$PREFIX/lib/cmake/clang
+ │ │ +DEBUG_CXXFLAGS=-fvisibility-inlines-hidden -fmessage-length=0 -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-all -fno-plt -Og -g -W
+ │ │ all -Wextra -fvar-tracking-assignments -ffunction-sections -pipe -fno-merge-constants -isystem $PREFIX/include -fdebug-prefix-map=$SRC_DIR=/usr/local/src/c
+ │ │ onda/cppjit-0.1.0a1 -fdebug-prefix-map=$PREFIX=/usr/local/src/conda-prefix
+ │ │ +GXX=x86_64-conda-linux-gnu-g++
+ │ │ Using pip 26.2.1 from $PREFIX/lib/python3.13/site-packages/pip (python 3.13)
+ │ │ Non-user install because user site-packages disabled
+ │ │ Ignoring indexes: https://pypi.org/simple
+ │ │ Created temporary directory: /tmp/pip-build-tracker-t4wuvzdl
+ │ │ Initialized build tracking at /tmp/pip-build-tracker-t4wuvzdl
+ │ │ Created build tracker: /tmp/pip-build-tracker-t4wuvzdl
+ │ │ Entered build tracker: /tmp/pip-build-tracker-t4wuvzdl
+ │ │ Created temporary directory: /tmp/pip-install-j36dpu0w
+ │ │ Created temporary directory: /tmp/pip-ephem-wheel-cache-7lta4ea5
+ │ │ Processing ./.
+ │ │   Added file://$SRC_DIR to build tracker '/tmp/pip-build-tracker-t4wuvzdl'
+ │ │   Created temporary directory: /tmp/pip-modern-metadata-ip1_0ry9
+ │ │   Preparing metadata (pyproject.toml): started
+ │ │   Running command Preparing metadata (pyproject.toml)
+ │ │   *** scikit-build-core 1.0.3 using CMake 4.4.3 (metadata_wheel)
+ │ │   2026-09-15 11:48:30,861 - scikit_build_core - WARNING - Unsupported CMAKE_ARGS ignored: -DCMAKE_BUILD_TYPE=Release
+ │ │   2026-09-15 11:48:30,861 - scikit_build_core - WARNING - Unsupported CMAKE_ARGS ignored: -DCMAKE_INSTALL_PREFIX=$PREFIX
+ │ │   Preparing metadata (pyproject.toml): finished with status 'done'
+ │ │   Source in ./. has version 0.1.0a1, which satisfies requirement cppjit==0.1.0a1 from file://$SRC_DIR
+ │ │   Removed cppjit==0.1.0a1 from file://$SRC_DIR from build tracker '/tmp/pip-build-tracker-t4wuvzdl'
+ │ │ Created temporary directory: /tmp/pip-unpack-6wrj55bz
+ │ │ Building wheels for collected packages: cppjit
+ │ │   Destination directory: /tmp/pip-ephem-wheel-cache-7lta4ea5/wheels/e5/e0/95/5fc466b9697310c81e5d205176812a2a7a38a5fd984fb4531a/tmpz_8u93ol
+ │ │   Building wheel for cppjit (pyproject.toml): started
+ │ │   Running command Building wheel for cppjit (pyproject.toml)
+ │ │   *** scikit-build-core 1.0.3 using CMake 4.4.3 (wheel)
+ │ │   2026-09-15 11:48:30,966 - scikit_build_core - WARNING - Unsupported CMAKE_ARGS ignored: -DCMAKE_BUILD_TYPE=Release
+ │ │   2026-09-15 11:48:30,966 - scikit_build_core - WARNING - Unsupported CMAKE_ARGS ignored: -DCMAKE_INSTALL_PREFIX=$PREFIX
+ │ │   *** Configuring CMake...
+ │ │   2026-09-15 11:48:30,970 - scikit_build_core - WARNING - Unsupported CMAKE_ARGS ignored: -DCMAKE_BUILD_TYPE=Release
+ │ │   2026-09-15 11:48:30,970 - scikit_build_core - WARNING - Unsupported CMAKE_ARGS ignored: -DCMAKE_INSTALL_PREFIX=$PREFIX
+ │ │   2026-09-15 11:48:30,972 - scikit_build_core - WARNING - Unsupported CMAKE_ARGS ignored: -DCMAKE_BUILD_TYPE=Release
+ │ │   2026-09-15 11:48:30,972 - scikit_build_core - WARNING - Unsupported CMAKE_ARGS ignored: -DCMAKE_INSTALL_PREFIX=$PREFIX
+ │ │   loading initial cache file /tmp/tmpfqqhkb0f/build/CMakeInit.txt
+ │ │   -- The C compiler identification is GNU 16.2.0
+ │ │   -- The CXX compiler identification is GNU 16.2.0
+ │ │   -- Detecting C compiler ABI info
+ │ │   -- Detecting C compiler ABI info - done
+ │ │   -- Check for working C compiler: $BUILD_PREFIX/bin/x86_64-conda-linux-gnu-cc - skipped
+ │ │   -- Detecting C compile features
+ │ │   -- Detecting C compile features - done
+ │ │   -- Detecting CXX compiler ABI info
+ │ │   -- Detecting CXX compiler ABI info - done
+ │ │   -- Check for working CXX compiler: $BUILD_PREFIX/bin/x86_64-conda-linux-gnu-c++ - skipped
+ │ │   -- Detecting CXX compile features
+ │ │   -- Detecting CXX compile features - done
+ │ │   -- Found Python: $PREFIX/bin/python (found version "3.13.15") found components: Interpreter Development.Module
+ │ │   -- Found ZLIB: $PREFIX/lib/libz.so (found version "1.3.2")
+ │ │   -- Found zstd: $PREFIX/lib/libzstd.so
+ │ │   -- Could NOT find LibXml2 (missing: LIBXML2_LIBRARY LIBXML2_INCLUDE_DIR)
+ │ │   -- Found LLVM 21.1.8 at $PREFIX/lib/cmake/llvm
+ │ │   -- Could NOT find LibXml2 (missing: LIBXML2_LIBRARY LIBXML2_INCLUDE_DIR)
+ │ │   -- Found Clang at $PREFIX/lib/cmake/clang
+ │ │   -- CppInterOp: building from local source at $SRC_DIR/cppinterop-src over the currently supported version 9802d61921ad5688ae42e4e628d754fc1192244d
+ │ │   -- Configuring done (0.4s)
+ │ │   -- Generating done (0.0s)
+ │ │   CMake Warning (unused-cli):
+ │ │     Manually-specified variables were not used by the project:
+ │ │       CMAKE_POLICY_DEFAULT_CMP0094
+ │ │   -- Build files have been written to: /tmp/tmpfqqhkb0f/build
+ │ │   2026-09-15 11:48:31,410 - scikit_build_core - WARNING - Unsupported CMAKE_ARGS ignored: -DCMAKE_BUILD_TYPE=Release
+ │ │   2026-09-15 11:48:31,410 - scikit_build_core - WARNING - Unsupported CMAKE_ARGS ignored: -DCMAKE_INSTALL_PREFIX=$PREFIX
+ │ │   *** Building project with Ninja...
+ │ │   [0/2] Re-checking globbed directories...
+ │ │   [1/43] Creating directories for 'CppInterOp'
+ │ │   [2/43] No download step for 'CppInterOp'
+ │ │   [3/43] No update step for 'CppInterOp'
+ │ │   [4/43] No patch step for 'CppInterOp'
+ │ │   [5/43] Performing configure step for 'CppInterOp'
+ │ │   CMake Warning (author) at CMakeLists.txt:9 (enable_language):
+ │ │     project() should be called prior to this enable_language() call.
+ │ │   This warning is for project developers.  Use -Wno-author to suppress it.
+ │ │   -- The CXX compiler identification is GNU 16.2.0
+ │ │   -- Detecting CXX compiler ABI info
+ │ │   -- Detecting CXX compiler ABI info - done
+ │ │   -- Check for working CXX compiler: $BUILD_PREFIX/bin/x86_64-conda-linux-gnu-c++ - skipped
+ │ │   -- Detecting CXX compile features
+ │ │   -- Detecting CXX compile features - done
+ │ │   -- The C compiler identification is GNU 16.2.0
+ │ │   -- Detecting C compiler ABI info
+ │ │   -- Detecting C compiler ABI info - done
+ │ │   -- Check for working C compiler: $BUILD_PREFIX/bin/x86_64-conda-linux-gnu-cc - skipped
+ │ │   -- Detecting C compile features
+ │ │   -- Detecting C compile features - done
+ │ │   -- Found ZLIB: $PREFIX/lib/libz.so (found version "1.3.2")
+ │ │   -- Found zstd: $PREFIX/lib/libzstd.so
+ │ │   -- Could NOT find LibXml2 (missing: LIBXML2_LIBRARY LIBXML2_INCLUDE_DIR)
+ │ │   -- Found supported version: LLVM 21.1.8
+ │ │   -- Using LLVMConfig.cmake in: $PREFIX/lib/cmake/llvm
+ │ │   -- Could NOT find LibXml2 (missing: LIBXML2_LIBRARY LIBXML2_INCLUDE_DIR)
+ │ │   -- Found supported version: Clang 21.1.8
+ │ │   -- Using ClangConfig.cmake in: $PREFIX/lib/cmake/clang
+ │ │   -- Linker detection: LLD
+ │ │   -- Performing Test C_SUPPORTS_FPIC
+ │ │   -- Performing Test C_SUPPORTS_FPIC - Success
+ │ │   -- Performing Test CXX_SUPPORTS_FPIC
+ │ │   -- Performing Test CXX_SUPPORTS_FPIC - Success
+ │ │   -- Building with -fPIC
+ │ │   -- Performing Test C_SUPPORTS_FNO_SEMANTIC_INTERPOSITION
+ │ │   -- Performing Test C_SUPPORTS_FNO_SEMANTIC_INTERPOSITION - Success
+ │ │   -- Performing Test CXX_SUPPORTS_FNO_SEMANTIC_INTERPOSITION
+ │ │   -- Performing Test CXX_SUPPORTS_FNO_SEMANTIC_INTERPOSITION - Success
+ │ │   -- Performing Test SUPPORTS_FVISIBILITY_INLINES_HIDDEN_FLAG
+ │ │   -- Performing Test SUPPORTS_FVISIBILITY_INLINES_HIDDEN_FLAG - Success
+ │ │   -- Performing Test CXX_SUPPORTS_SUGGEST_OVERRIDE_FLAG
+ │ │   -- Performing Test CXX_SUPPORTS_SUGGEST_OVERRIDE_FLAG - Success
+ │ │   -- Performing Test CXX_WSUGGEST_OVERRIDE_ALLOWS_ONLY_FINAL
+ │ │   -- Performing Test CXX_WSUGGEST_OVERRIDE_ALLOWS_ONLY_FINAL - Success
+ │ │   CMake Warning (policy) at $PREFIX/lib/cmake/llvm/HandleLLVMOptions.cmake:915 (CHECK_C_SOURCE_COMPILES):
+ │ │     Policy CMP0219 is not set: Macro invocations preserve backslashes in
+ │ │     arguments.  Run "cmake --help-policy CMP0219" for policy details.  Use the
+ │ │     cmake_policy command to set the policy and suppress this warning.
+ │ │     Command "CHECK_C_SOURCE_COMPILES" called with arguments containing
+ │ │     backslashes.
+ │ │     Since the policy is not set, backslashes in the arguments:
+ │ │      "// \\\n//\nint main(void) {return 0;}"
+ │ │     will be interpreted as escape sequences for compatibility.
+ │ │     Set the policy to NEW to instead pass
+ │ │      "// \\\\\\n//\\nint main(void) {return 0;}"
+ │ │     so that argument parsing will preserve the original values.
+ │ │   Call Stack (most recent call first):
+ │ │     CMakeLists.txt:326 (include)
+ │ │   This warning is for project developers.  Use -Wno-author or -Wno-policy to
+ │ │   suppress it.
+ │ │   -- Performing Test C_WCOMMENT_ALLOWS_LINE_WRAP
+ │ │   -- Performing Test C_WCOMMENT_ALLOWS_LINE_WRAP - Failed
+ │ │   -- Performing Test C_SUPPORTS_CTAD_MAYBE_UNSPPORTED_FLAG
+ │ │   -- Performing Test C_SUPPORTS_CTAD_MAYBE_UNSPPORTED_FLAG - Failed
+ │ │   -- Performing Test CXX_SUPPORTS_CTAD_MAYBE_UNSPPORTED_FLAG
+ │ │   -- Performing Test CXX_SUPPORTS_CTAD_MAYBE_UNSPPORTED_FLAG - Success
+ │ │   -- Performing Test LINKER_SUPPORTS_COLOR_DIAGNOSTICS
+ │ │   -- Performing Test LINKER_SUPPORTS_COLOR_DIAGNOSTICS - Success
+ │ │   -- Looking for os_signpost_interval_begin
+ │ │   -- Looking for os_signpost_interval_begin - not found
+ │ │   -- Performing Test LLVM_LINKER_SUPPORTS_B_SYMBOLIC_FUNCTIONS
+ │ │   -- Performing Test LLVM_LINKER_SUPPORTS_B_SYMBOLIC_FUNCTIONS - Success
+ │ │   -- Configuring done (0.7s)
+ │ │   -- Generating done (0.0s)
+ │ │   -- Build files have been written to: /tmp/tmpfqqhkb0f/build/CppInterOp/src/CppInterOp-build
+ │ │   [6/43] Verifying the configured source tree is CppInterOp
+ │ │   [7/43] Performing build step for 'CppInterOp'
+ │ │   [1/17] Building CXX object utils/TableGen/CMakeFiles/cppinterop-tblgen.dir/TableGen.cpp.o
+ │ │   [2/17] Building CXX object utils/TableGen/CMakeFiles/cppinterop-tblgen.dir/CppInterOpEmitter.cpp.o
+ │ │   [3/17] Linking CXX executable bin/cppinterop-tblgen
+ │ │   [4/17] Generating CXCppInterOpImpl.inc...
+ │ │   [5/17] Generating CppInterOpAPI.inc...
+ │ │   [6/17] Generating CXCppInterOpDecl.inc...
+ │ │   [7/17] Generating CppInterOpDecl.inc...
+ │ │   [8/17] Building CXX object lib/CppInterOp/CMakeFiles/clangCppInterOp.dir/CXCppInterOpGenerated.cpp.o
+ │ │   [9/17] Building CXX object lib/CppInterOp/CMakeFiles/clangCppInterOp.dir/CppInterOpDispatch.cpp.o
+ │ │   [10/17] Building CXX object lib/CppInterOp/CMakeFiles/clangCppInterOp.dir/Tracing.cpp.o
+ │ │   [11/17] Building CXX object lib/CppInterOp/CMakeFiles/clangCppInterOp.dir/DynamicLibraryManagerSymbol.cpp.o
+ │ │   [12/17] Building CXX object lib/CppInterOp/CMakeFiles/clangCppInterOp.dir/CXCppInterOp.cpp.o
+ │ │   [13/17] Building CXX object lib/CppInterOp/CMakeFiles/clangCppInterOp.dir/Paths.cpp.o
+ │ │   [14/17] Building CXX object lib/CppInterOp/CMakeFiles/clangCppInterOp.dir/DynamicLibraryManager.cpp.o
+ │ │   [15/17] Building CXX object lib/CppInterOp/CMakeFiles/clangCppInterOp.dir/ErrorInternal.cpp.o
+ │ │   [16/17] Building CXX object lib/CppInterOp/CMakeFiles/clangCppInterOp.dir/CppInterOp.cpp.o
+ │ │   [17/17] Linking CXX shared library lib/libclangCppInterOp.so
+ │ │   [8/43] Performing install step for 'CppInterOp'
+ │ │   [0/2] cd /tmp/tmpfqqhkb0f/build/CppInterOp/src/CppInterOp-build && $BUILD_PREFIX/bin/cmake -DCMAKE_INSTALL_COMPONENT="cppinterop-headers" -P /tmp/tmpfqqh
+ │ │ kb0f/build/CppInterOp/src/CppInterOp-build/cmake_install.cmake
+ │ │   -- Install configuration: "Release"
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/build/interop/include
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/build/interop/include/clang
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/build/interop/include/clang/Interpreter
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/build/interop/include/clang/Interpreter/CppInterOp.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/build/interop/include/CppInterOp
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/build/interop/include/CppInterOp/CppInterOp.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/build/interop/include/CppInterOp/CppInterOpTypes.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/build/interop/include/CppInterOp/Box.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/build/interop/include/CppInterOp/Error.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/build/interop/include/CppInterOp/CppInterOpThunks.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/build/interop/include/CppInterOp/CXCppInterOp.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/build/interop/include/CppInterOp/Dispatch.h
+ │ │   -- Up-to-date: /tmp/tmpfqqhkb0f/build/interop/include
+ │ │   -- Up-to-date: /tmp/tmpfqqhkb0f/build/interop/include/CppInterOp
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/build/interop/include/CppInterOp/BuildInfo.inc
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/build/interop/include/CppInterOp/CXCppInterOpDecl.inc
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/build/interop/include/CppInterOp/CppInterOpDecl.inc
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/build/interop/include/CppInterOp/CppInterOpAPI.inc
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/build/interop/include/CppInterOp/CXCppInterOpImpl.inc
+ │ │   [1/2] cd /tmp/tmpfqqhkb0f/build/CppInterOp/src/CppInterOp-build/lib/CppInterOp && $BUILD_PREFIX/bin/cmake -DCMAKE_INSTALL_COMPONENT="clangCppInterOp" -DC
+ │ │ MAKE_INSTALL_DO_STRIP=1 -P /tmp/tmpfqqhkb0f/build/CppInterOp/src/CppInterOp-build/cmake_install.cmake
+ │ │   -- Install configuration: "Release"
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/build/interop/lib/libclangCppInterOp.so
+ │ │   -- Set non-toolchain portion of runtime path of "/tmp/tmpfqqhkb0f/build/interop/lib/libclangCppInterOp.so" to "$ORIGIN/../lib"
+ │ │   [9/43] Completed 'CppInterOp'
+ │ │   [10/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/CallContext.cxx.o
+ │ │   [11/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/CPPClassMethod.cxx.o
+ │ │   [12/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/CPPFunction.cxx.o
+ │ │   [13/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/CustomPyTypes.cxx.o
+ │ │   [14/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/API.cxx.o
+ │ │   [15/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/CPPOperator.cxx.o
+ │ │   [16/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/DispatchPtr.cxx.o
+ │ │   [17/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/CPPConstructor.cxx.o
+ │ │   [18/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/CPPDataMember.cxx.o
+ │ │   [19/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/CPPExcInstance.cxx.o
+ │ │   [20/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/CPPEnum.cxx.o
+ │ │   [21/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/CPPGetSetItem.cxx.o
+ │ │   [22/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/CPPInstance.cxx.o
+ │ │   [23/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/CPPScope.cxx.o
+ │ │   [24/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/TupleOfInstances.cxx.o
+ │ │   [25/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/PyStrings.cxx.o
+ │ │   [26/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/PyException.cxx.o
+ │ │   [27/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/CPPOverload.cxx.o
+ │ │   [28/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/CPPMethod.cxx.o
+ │ │   [29/43] Building CXX object CMakeFiles/cppjit.dir/src/interop/cppinterop_dispatch.cxx.o
+ │ │   [30/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/MemoryRegulator.cxx.o
+ │ │   [31/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/Dispatcher.cxx.o
+ │ │   [32/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/TypeManip.cxx.o
+ │ │   [33/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/cpyrtModule.cxx.o
+ │ │   [34/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/ProxyWrappers.cxx.o
+ │ │   [35/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/TemplateProxy.cxx.o
+ │ │   [36/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/LowLevelViews.cxx.o
+ │ │   [37/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/Pythonize.cxx.o
+ │ │   [38/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/Executors.cxx.o
+ │ │   [39/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/Utility.cxx.o
+ │ │   [40/43] Building CXX object CMakeFiles/cppjit.dir/src/interop/interop_wrapper.cxx.o
+ │ │   [41/43] Building CXX object CMakeFiles/cppjit.dir/src/cpyrt/Converters.cxx.o
+ │ │   [42/43] Linking CXX shared library libcppjit.so
+ │ │   *** Installing project into wheel...
+ │ │   -- Install configuration: "Release"
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/libcppjit.so
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/libclangCppInterOp.so
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/clang
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/clang/Interpreter
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/clang/Interpreter/CppInterOp.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/CppInterOp
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/CppInterOp/CppInterOp.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/CppInterOp/CppInterOpTypes.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/CppInterOp/Box.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/CppInterOp/BuildInfo.inc
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/CppInterOp/Error.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/CppInterOp/CXCppInterOpDecl.inc
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/CppInterOp/CppInterOpThunks.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/CppInterOp/CppInterOpDecl.inc
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/CppInterOp/CXCppInterOp.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/CppInterOp/Dispatch.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/CppInterOp/CppInterOpAPI.inc
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/CppInterOp/CXCppInterOpImpl.inc
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/amxtransposeintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512cdintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512vlvbmi2intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__clang_cuda_texture_intrinsics.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/rtmintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/tsxldtrkintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/andes_vector.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512vlbwintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/immintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512vlvnniintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx10_2_512convertintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avxvnniintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/arm_neon_sve_bridge.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/amxfp16transposeintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx10_2_512bf16intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/riscv_bitmanip.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/tmmintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/amxavx512intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/cldemoteintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/varargs.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/popcntintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/amxmovrsintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512ifmaintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/xsavesintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/serializeintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/amxtf32intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__stddef_header_macro.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/x86intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/htmxlintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/stdint.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/velintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx10_2copyintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/amxcomplexintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/stdckdint.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avxvnniint8intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx10_2bf16intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/ptrauth.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/ppc_wrappers
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/ppc_wrappers/immintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/ppc_wrappers/tmmintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/ppc_wrappers/x86intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/ppc_wrappers/mm_malloc.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/ppc_wrappers/smmintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/ppc_wrappers/pmmintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/ppc_wrappers/xmmintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/ppc_wrappers/emmintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/ppc_wrappers/mmintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/ppc_wrappers/bmi2intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/ppc_wrappers/x86gprintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/ppc_wrappers/nmmintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/ppc_wrappers/bmiintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/vpclmulqdqintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/yvals_core.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/fmaintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/stdcountof.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/adxintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/vecintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/clzerointrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512vnniintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/xsaveintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sanitizer
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sanitizer/tsan_interface_atomic.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sanitizer/msan_interface.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sanitizer/dfsan_interface.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sanitizer/linux_syscall_hooks.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sanitizer/common_interface_defs.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sanitizer/scudo_interface.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sanitizer/asan_interface.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sanitizer/hwasan_interface.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sanitizer/memprof_interface.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sanitizer/ubsan_interface.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sanitizer/tsan_interface.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sanitizer/rtsan_interface.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sanitizer/coverage_interface.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sanitizer/lsan_interface.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sanitizer/allocator_interface.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sanitizer/netbsd_syscall_hooks.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/vadefs.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/cuda_wrappers
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/cuda_wrappers/cmath
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/cuda_wrappers/complex
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/cuda_wrappers/bits
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/cuda_wrappers/bits/shared_ptr_base.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/cuda_wrappers/bits/basic_string.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/cuda_wrappers/bits/c++config.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/cuda_wrappers/bits/basic_string.tcc
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/cuda_wrappers/algorithm
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/cuda_wrappers/new
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/arm_cde.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sm3intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/vaesintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__clang_hip_math.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/fxsrintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/ammintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512fintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/movrs_avx10_2intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/wmmintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/unwind.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/openmp_wrappers
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/openmp_wrappers/cmath
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/openmp_wrappers/complex
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/openmp_wrappers/__clang_openmp_device_functions.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/openmp_wrappers/complex.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/openmp_wrappers/complex_cmath.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/openmp_wrappers/new
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/openmp_wrappers/math.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx10_2niintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/uintrintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/riscv_ntlh.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/mm_malloc.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/adcintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/mm3dnow.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/cetintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512bwintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__clang_hip_stdlib.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx10_2satcvtdsintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/builtins.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512fp16intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/riscv_vector.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/xray
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/xray/xray_interface.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/xray/xray_records.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/xray/xray_log_interface.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/intrin0.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__stdarg___va_copy.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512vlbf16intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/float.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/amxmovrstransposeintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__clang_cuda_runtime_wrapper.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__stdarg_header_macro.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__clang_cuda_cmath.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/xtestintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__clang_cuda_device_functions.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/inttypes.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/s390intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/rdseedintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__clang_hip_runtime_wrapper.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__clang_spirv_builtins.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__clang_cuda_builtin_vars.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/msa.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/htmintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/arm_vector_types.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/lasxintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/cet.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avxneconvertintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512bf16intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512vlcdintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__stddef_wint_t.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/usermsrintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/smmintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__stddef_ptrdiff_t.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512vp2intersectintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/xsaveoptintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/crc32intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/pconfigintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/altivec.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512vlintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/pmmintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/prfchiintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/cmpccxaddintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/nvptxintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/wbnoinvdintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/riscv_crypto.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/raointintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512vbmivlintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/xmmintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx10_2convertintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512vlfp16intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/larchintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__wmmintrin_pclmul.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/opencl-c-base.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/stdarg.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__stdarg_va_arg.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__stddef_unreachable.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512bitalgintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx10_2_512satcvtdsintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/movdirintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/arm_mve.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/amxintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__stdarg___gnuc_va_list.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/hresetintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/hexagon_types.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512vldqintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__clang_cuda_complex_builtins.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/movrs_avx10_2_512intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/lsxintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__stddef_offsetof.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sha512intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/waitpkgintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avxvnniint16intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__stdarg_va_copy.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/profile
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/profile/instr_prof_interface.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/profile/InstrProfData.inc
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/tgmath.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/amxtf32transposeintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/arm_neon.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx10_2satcvtintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/omp.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx2intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/emmintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/zos_wrappers
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/zos_wrappers/builtins.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/fma4intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512vpopcntdqintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__stddef_nullptr_t.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/ptwriteintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__clang_cuda_intrinsics.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/rdpruintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/opencl-c.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__stddef_wchar_t.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/lzcntintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__clang_cuda_math_forward_declares.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avxintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/amdgpuintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/mmintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/movrsintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/bmi2intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/stdbool.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/fuzzer
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/fuzzer/FuzzedDataProvider.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/hexagon_protos.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/armintr.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx10_2minmaxintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/tbmintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__clang_hip_libdevice_declares.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/enqcmdintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/ia32intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/velintrin_gen.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/arm_cmse.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512vbmiintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/xsavecintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sm4evexintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/cpuid.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/x86gprintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/stdnoreturn.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512vlbitalgintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sgxintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__stddef_rsize_t.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/module.modulemap
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/xopintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/amxbf16transposeintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/prfchwintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__stddef_null.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/mwaitxintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/limits.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/wasm_simd128.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/orc
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/orc/c_api.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/amxfp8intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/riscv_corev_alu.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__wmmintrin_aes.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__stdarg_va_list.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx10_2_512minmaxintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__stddef_size_t.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/arm_sve.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/arm_bf16.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx10_2_512satcvtintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/arm_acle.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sm4intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/gfniintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/hvx_hexagon_protos.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/llvm_libc_wrappers
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/llvm_libc_wrappers/ctype.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/llvm_libc_wrappers/string.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/llvm_libc_wrappers/inttypes.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/llvm_libc_wrappers/time.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/llvm_libc_wrappers/assert.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/llvm_libc_wrappers/stdio.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/llvm_libc_wrappers/stdlib.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/f16cintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/lwpintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/sifive_vector.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512dqintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/stdalign.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/shaintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/arm_fp16.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__stddef_max_align_t.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/pkuintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__clang_cuda_math.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/hexagon_circ_brev_intrinsics.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/amxfp16intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512vpopcntdqvlintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/velintrin_approx.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx10_2_512niintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/invpcidintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/amxcomplextransposeintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512ifmavlintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/arm64intr.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/clflushoptintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/gpuintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512vbmi2intrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__clang_hip_cmath.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avxifmaintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/stdatomic.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/nmmintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/keylockerintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/iso646.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/llvm_offload_wrappers
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/llvm_offload_wrappers/__llvm_offload_device.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/llvm_offload_wrappers/__llvm_offload_host.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/llvm_offload_wrappers/__llvm_offload.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/avx512vlvp2intersectintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/stddef.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/clwbintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/arm_sme.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/__clang_cuda_libdevice_declares.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/lib/clang/21/include/bmiintrin.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/cpyrt/API.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/cpyrt/CommonDefs.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/cpyrt/DispatchPtr.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/cpyrt/PyException.h
+ │ │   -- Installing: /tmp/tmpfqqhkb0f/wheel/platlib/cppjit/interop/include/cpyrt/Reflex.h
+ │ │   *** Making wheel...
+ │ │   *** Created cppjit-0.1.0a1-cp313-cp313-linux_x86_64.whl
+ │ │   Building wheel for cppjit (pyproject.toml): finished with status 'done'
+ │ │   Created wheel for cppjit: filename=cppjit-0.1.0a1-cp313-cp313-linux_x86_64.whl size=77873885 sha256=5ebb5b3a107d83364309e5add3f044d6e6322b8e1be248dd1f15e
+ │ │ 9c13d232c2f
+ │ │   Stored in directory: /tmp/pip-ephem-wheel-cache-7lta4ea5/wheels/e5/e0/95/5fc466b9697310c81e5d205176812a2a7a38a5fd984fb4531a
+ │ │ Successfully built cppjit
+ │ │ Installing collected packages: cppjit
+ │ │ Successfully installed cppjit-0.1.0a1
+ │ │ Removed build tracker: '/tmp/pip-build-tracker-t4wuvzdl'
+ │ │ WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your
+ │ │  system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know 
+ │ │ what you are doing and want to suppress this warning.
+ │ │
+ │ ╰─────────────────── (took 41 seconds)
+ │
+ │ ╭─ Packaging new files
+ │ │ Copying done!
+ │ │ rpath ("/cf/output/bld/rattler-build_cppjit_1789472905/build_env/lib") is outside of prefix ("/cf/output/bld/rattler-build_cppjit_1789472905/host_env_place
+ │ │ hold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_
+ │ │ placehold_placehold_placehold_placehold") for "/tmp/cppjitnxbtrb/lib/python3.13/site-packages/cppjit/libcppjit.so" - removing it
+ │ │ Relinking "libcppjit.so"
+ │ │ rpath ("/cf/output/bld/rattler-build_cppjit_1789472905/build_env/lib") is outside of prefix ("/cf/output/bld/rattler-build_cppjit_1789472905/host_env_place
+ │ │ hold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_placehold_
+ │ │ placehold_placehold_placehold_placehold") for "/tmp/cppjitnxbtrb/lib/python3.13/site-packages/cppjit/interop/lib/libclangCppInterOp.so" - removing it
+ │ │ Relinking "libclangCppInterOp.so"
+ │ │ 
+ │ │ [lib/python3.13/site-packages/cppjit/libcppjit.so] links against:
+ │ │  ├─ lib/libstdc++.so.6.0.36 (libstdcxx)
+ │ │  ├─ libc.so.6 (system)
+ │ │  ├─ ld-linux-x86-64.so.2 (system)
+ │ │  └─ lib/libgcc_s.so.1 (libgcc)
+ │ │ 
+ │ │ [lib/python3.13/site-packages/cppjit/interop/lib/libclangCppInterOp.so] links against:
+ │ │  ├─ lib/libgcc_s.so.1 (libgcc)
+ │ │  ├─ libpthread.so.0 (system)
+ │ │  ├─ lib/libz.so.1.3.2 (libzlib)
+ │ │  ├─ libm.so.6 (system)
+ │ │  ├─ libdl.so.2 (system)
+ │ │  ├─ libc.so.6 (system)
+ │ │  ├─ lib/libstdc++.so.6.0.36 (libstdcxx)
+ │ │  ├─ lib/libzstd.so.1.5.7 (zstd)
+ │ │  └─ ld-linux-x86-64.so.2 (system)
+ │ │ ⚠ warning Overdepending against libxml2-16
+ │ │ Post-processing done!
+ │ │ Writing test files
+ │ │ Writing metadata for package
+ │ │ Copying license files
+ │ │ Copying recipe files
+ │ │ 
+ │ │ Files in package:
+ │ │   ├─ etc/conda/test-files/cppjit/1/smoke.py (468 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/__init__.py (14.94 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/__pycache__/__init__.cpython-313.pyc (21.57 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/__pycache__/_cpython_cppjit.cpython-313.pyc (9.96 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/__pycache__/_pythonization.cpython-313.pyc (16.78 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/__pycache__/_stdcpp_fix.cpython-313.pyc (775 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/__pycache__/_typemap.cpython-313.pyc (4.54 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/__pycache__/_version.cpython-313.pyc (431 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/__pycache__/interactive.cpython-313.pyc (2.20 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/__pycache__/ll.cpython-313.pyc (7.83 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/__pycache__/numba_ext.cpython-313.pyc (31.92 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/__pycache__/reflex.cpython-313.pyc (1.83 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/__pycache__/types.cpython-313.pyc (1.10 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/_cpython_cppjit.py (7.21 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/_pythonization.py (12.25 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/_stdcpp_fix.py (525 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/_typemap.py (4.13 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/_version.py (24 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interactive.py (1.24 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/include/CppInterOp/Box.h (12.00 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/include/CppInterOp/BuildInfo.inc (1.01 KiB) [prefix:text]
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/include/CppInterOp/CXCppInterOp.h (2.96 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/include/CppInterOp/CXCppInterOpDecl.inc (30.87 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/include/CppInterOp/CXCppInterOpImpl.inc (24.55 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/include/CppInterOp/CppInterOp.h (4.40 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/include/CppInterOp/CppInterOpAPI.inc (30.78 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/include/CppInterOp/CppInterOpDecl.inc (33.39 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/include/CppInterOp/CppInterOpThunks.h (1.96 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/include/CppInterOp/CppInterOpTypes.h (19.36 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/include/CppInterOp/Dispatch.h (5.75 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/include/CppInterOp/Error.h (11.99 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/include/clang/Interpreter/CppInterOp.h (522 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/include/cpyrt/API.h (7.47 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/include/cpyrt/CommonDefs.h (893 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/include/cpyrt/DispatchPtr.h (3.12 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/include/cpyrt/PyException.h (2.41 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/include/cpyrt/Reflex.h (541 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__clang_cuda_builtin_vars.h (4.78 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__clang_cuda_cmath.h (18.06 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__clang_cuda_complex_builtins.h (9.36 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__clang_cuda_device_functions.h (57.36 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__clang_cuda_intrinsics.h (45.04 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__clang_cuda_libdevice_declares.h (21.89 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__clang_cuda_math.h (16.21 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__clang_cuda_math_forward_declares.h (8.27 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__clang_cuda_runtime_wrapper.h (17.64 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__clang_cuda_texture_intrinsics.h (55.35 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__clang_hip_cmath.h (26.56 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__clang_hip_libdevice_declares.h (19.41 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__clang_hip_math.h (35.82 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__clang_hip_runtime_wrapper.h (5.04 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__clang_hip_stdlib.h (1.19 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__clang_spirv_builtins.h (8.88 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__stdarg___gnuc_va_list.h (467 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__stdarg___va_copy.h (445 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__stdarg_header_macro.h (417 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__stdarg_va_arg.h (771 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__stdarg_va_copy.h (451 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__stdarg_va_list.h (448 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__stddef_header_macro.h (417 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__stddef_max_align_t.h (857 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__stddef_null.h (875 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__stddef_nullptr_t.h (958 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__stddef_offsetof.h (708 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__stddef_ptrdiff_t.h (717 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__stddef_rsize_t.h (710 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__stddef_size_t.h (708 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__stddef_unreachable.h (735 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__stddef_wchar_t.h (853 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__stddef_wint_t.h (443 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__wmmintrin_aes.h (5.15 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/__wmmintrin_pclmul.h (1.99 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/adcintrin.h (5.43 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/adxintrin.h (3.37 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/altivec.h (698.27 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/amdgpuintrin.h (7.31 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/ammintrin.h (7.56 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/amxavx512intrin.h (12.68 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/amxbf16transposeintrin.h (3.44 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/amxcomplexintrin.h (6.77 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/amxcomplextransposeintrin.h (11.78 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/amxfp16intrin.h (3.25 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/amxfp16transposeintrin.h (3.44 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/amxfp8intrin.h (8.63 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/amxintrin.h (19.83 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/amxmovrsintrin.h (2.24 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/amxmovrstransposeintrin.h (9.18 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/amxtf32intrin.h (3.48 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/amxtf32transposeintrin.h (3.56 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/amxtransposeintrin.h (10.60 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/andes_vector.h (518 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/arm64intr.h (993 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/arm_acle.h (29.24 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/arm_bf16.h (548 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/arm_cde.h (32.67 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/arm_cmse.h (6.21 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/arm_fp16.h (18.59 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/arm_mve.h (1.48 MiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/arm_neon.h (3.04 MiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/arm_neon_sve_bridge.h (9.48 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/arm_sme.h (274.81 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/arm_sve.h (2.05 MiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/arm_vector_types.h (9.86 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/armintr.h (843 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx10_2_512bf16intrin.h (22.86 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx10_2_512convertintrin.h (12.88 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx10_2_512minmaxintrin.h (7.35 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx10_2_512niintrin.h (13.71 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx10_2_512satcvtdsintrin.h (13.48 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx10_2_512satcvtintrin.h (16.60 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx10_2bf16intrin.h (43.66 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx10_2convertintrin.h (106.27 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx10_2copyintrin.h (2.35 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx10_2minmaxintrin.h (13.36 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx10_2niintrin.h (16.60 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx10_2satcvtdsintrin.h (14.90 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx10_2satcvtintrin.h (17.71 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx2intrin.h (188.12 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512bf16intrin.h (10.58 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512bitalgintrin.h (2.56 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512bwintrin.h (76.02 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512cdintrin.h (4.23 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512dqintrin.h (58.87 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512fintrin.h (383.45 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512fp16intrin.h (156.97 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512ifmaintrin.h (2.60 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512ifmavlintrin.h (4.60 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512vbmi2intrin.h (13.18 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512vbmiintrin.h (3.83 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512vbmivlintrin.h (7.23 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512vlbf16intrin.h (19.46 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512vlbitalgintrin.h (4.52 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512vlbwintrin.h (121.56 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512vlcdintrin.h (7.95 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512vldqintrin.h (46.71 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512vlfp16intrin.h (85.51 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512vlintrin.h (322.60 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512vlvbmi2intrin.h (26.01 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512vlvnniintrin.h (13.41 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512vlvp2intersectintrin.h (4.67 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512vnniintrin.h (4.32 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512vp2intersectintrin.h (3.03 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512vpopcntdqintrin.h (2.30 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avx512vpopcntdqvlintrin.h (3.86 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avxifmaintrin.h (5.75 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avxintrin.h (197.12 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avxneconvertintrin.h (14.09 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avxvnniint16intrin.h (15.84 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avxvnniint8intrin.h (17.02 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/avxvnniintrin.h (10.44 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/bmi2intrin.h (7.37 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/bmiintrin.h (19.87 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/builtins.h (846 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/cet.h (1.49 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/cetintrin.h (3.27 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/cldemoteintrin.h (1.18 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/clflushoptintrin.h (1.17 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/clwbintrin.h (1.20 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/clzerointrin.h (1.19 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/cmpccxaddintrin.h (2.33 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/cpuid.h (12.38 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/crc32intrin.h (3.27 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/cuda_wrappers/algorithm (4.50 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/cuda_wrappers/bits/basic_string.h (352 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/cuda_wrappers/bits/basic_string.tcc (354 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/cuda_wrappers/bits/c++config.h (1.70 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/cuda_wrappers/bits/shared_ptr_base.h (355 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/cuda_wrappers/cmath (2.00 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/cuda_wrappers/complex (3.53 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/cuda_wrappers/new (3.65 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/emmintrin.h (196.89 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/enqcmdintrin.h (2.12 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/f16cintrin.h (5.39 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/float.h (6.12 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/fma4intrin.h (6.82 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/fmaintrin.h (28.65 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/fuzzer/FuzzedDataProvider.h (15.73 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/fxsrintrin.h (2.82 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/gfniintrin.h (9.59 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/gpuintrin.h (12.92 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/hexagon_circ_brev_intrinsics.h (15.59 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/hexagon_protos.h (374.42 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/hexagon_types.h (130.38 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/hresetintrin.h (1.36 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/htmintrin.h (6.14 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/htmxlintrin.h (9.01 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/hvx_hexagon_protos.h (275.18 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/ia32intrin.h (25.38 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/immintrin.h (16.24 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/intrin.h (19.29 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/intrin0.h (13.76 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/inttypes.h (2.37 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/invpcidintrin.h (764 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/iso646.h (763 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/keylockerintrin.h (17.55 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/larchintrin.h (8.50 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/lasxintrin.h (142.14 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/limits.h (3.71 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/llvm_libc_wrappers/assert.h (942 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/llvm_libc_wrappers/ctype.h (3.75 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/llvm_libc_wrappers/inttypes.h (954 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/llvm_libc_wrappers/stdio.h (2.86 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/llvm_libc_wrappers/stdlib.h (1.67 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/llvm_libc_wrappers/string.h (3.93 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/llvm_libc_wrappers/time.h (976 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/llvm_offload_wrappers/__llvm_offload.h (1.04 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/llvm_offload_wrappers/__llvm_offload_device.h (400 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/llvm_offload_wrappers/__llvm_offload_host.h (569 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/lsxintrin.h (134.70 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/lwpintrin.h (5.00 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/lzcntintrin.h (3.57 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/mm3dnow.h (729 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/mm_malloc.h (1.88 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/mmintrin.h (58.60 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/module.modulemap (6.65 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/movdirintrin.h (1.57 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/movrs_avx10_2_512intrin.h (3.88 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/movrs_avx10_2intrin.h (6.87 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/movrsintrin.h (1.98 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/msa.h (25.01 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/mwaitxintrin.h (2.19 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/nmmintrin.h (709 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/nvptxintrin.h (7.73 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/opencl-c-base.h (31.43 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/opencl-c.h (891.76 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/openmp_wrappers/__clang_openmp_device_functions.h (2.54 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/openmp_wrappers/cmath (5.13 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/openmp_wrappers/complex (1.76 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/openmp_wrappers/complex.h (898 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/openmp_wrappers/complex_cmath.h (12.26 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/openmp_wrappers/math.h (2.01 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/openmp_wrappers/new (1.38 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/orc/c_api.h (6.84 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/pconfigintrin.h (1.19 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/pkuintrin.h (934 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/pmmintrin.h (11.12 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/popcntintrin.h (1.90 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/ppc_wrappers/bmi2intrin.h (4.56 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/ppc_wrappers/bmiintrin.h (4.88 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/ppc_wrappers/emmintrin.h (69.60 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/ppc_wrappers/immintrin.h (611 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/ppc_wrappers/mm_malloc.h (1.31 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/ppc_wrappers/mmintrin.h (44.69 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/ppc_wrappers/nmmintrin.h (977 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/ppc_wrappers/pmmintrin.h (5.76 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/ppc_wrappers/smmintrin.h (23.01 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/ppc_wrappers/tmmintrin.h (15.96 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/ppc_wrappers/x86gprintrin.h (499 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/ppc_wrappers/x86intrin.h (1.04 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/ppc_wrappers/xmmintrin.h (62.83 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/prfchiintrin.h (2.02 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/prfchwintrin.h (1.80 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/profile/InstrProfData.inc (38.30 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/profile/instr_prof_interface.h (3.06 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/ptrauth.h (18.14 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/ptwriteintrin.h (1.05 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/raointintrin.h (6.59 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/rdpruintrin.h (1.59 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/rdseedintrin.h (2.85 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/riscv_bitmanip.h (5.59 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/riscv_corev_alu.h (3.94 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/riscv_crypto.h (5.09 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/riscv_ntlh.h (744 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/riscv_vector.h (17.05 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/rtmintrin.h (1.25 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/s390intrin.h (604 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sanitizer/allocator_interface.h (4.86 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sanitizer/asan_interface.h (13.33 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sanitizer/common_interface_defs.h (22.25 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sanitizer/coverage_interface.h (1.11 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sanitizer/dfsan_interface.h (9.87 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sanitizer/hwasan_interface.h (4.92 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sanitizer/linux_syscall_hooks.h (214.33 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sanitizer/lsan_interface.h (3.90 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sanitizer/memprof_interface.h (2.60 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sanitizer/msan_interface.h (5.85 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sanitizer/netbsd_syscall_hooks.h (347.36 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sanitizer/rtsan_interface.h (2.14 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sanitizer/scudo_interface.h (1.48 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sanitizer/tsan_interface.h (14.60 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sanitizer/tsan_interface_atomic.h (9.52 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sanitizer/ubsan_interface.h (1.06 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/serializeintrin.h (881 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sgxintrin.h (1.77 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sha512intrin.h (5.95 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/shaintrin.h (7.48 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sifive_vector.h (6.88 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sm3intrin.h (7.29 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sm4evexintrin.h (1.17 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/sm4intrin.h (8.20 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/smmintrin.h (99.34 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/stdalign.h (756 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/stdarg.h (2.44 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/stdatomic.h (8.46 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/stdbool.h (1.14 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/stdckdint.h (1.63 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/stdcountof.h (473 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/stddef.h (4.93 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/stdint.h (26.87 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/stdnoreturn.h (1.29 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/tbmintrin.h (3.42 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/tgmath.h (29.68 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/tmmintrin.h (31.18 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/tsxldtrkintrin.h (1.97 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/uintrintrin.h (4.96 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/unwind.h (11.21 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/usermsrintrin.h (1.54 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/vadefs.h (1.39 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/vaesintrin.h (2.61 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/varargs.h (584 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/vecintrin.h (419.23 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/velintrin.h (2.10 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/velintrin_approx.h (3.54 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/velintrin_gen.h (69.06 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/vpclmulqdqintrin.h (1.06 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/waitpkgintrin.h (1.33 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/wasm_simd128.h (81.71 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/wbnoinvdintrin.h (749 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/wmmintrin.h (659 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/x86gprintrin.h (1.69 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/x86intrin.h (721 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/xmmintrin.h (117.52 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/xopintrin.h (19.96 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/xray/xray_interface.h (7.44 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/xray/xray_log_interface.h (15.62 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/xray/xray_records.h (3.85 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/xsavecintrin.h (2.51 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/xsaveintrin.h (1.64 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/xsaveoptintrin.h (1.00 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/xsavesintrin.h (1.24 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/xtestintrin.h (873 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/yvals_core.h (687 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/zos_wrappers/builtins.h (608 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/interop/lib/libclangCppInterOp.so (207.62 MiB) [prefix:bin]
+ │ │   ├─ lib/python3.13/site-packages/cppjit/libcppjit.so (1.31 MiB) [prefix:bin]
+ │ │   ├─ lib/python3.13/site-packages/cppjit/ll.py (4.44 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/numba_ext.py (22.38 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/reflex.py (668 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit/types.py (604 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit-0.1.0a1.dist-info/INSTALLER (6 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit-0.1.0a1.dist-info/METADATA (9.58 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit-0.1.0a1.dist-info/RECORD (36.31 KiB)
+ │ │   ├─ lib/python3.13/site-packages/cppjit-0.1.0a1.dist-info/REQUESTED (0 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit-0.1.0a1.dist-info/WHEEL (108 B)
+ │ │   ├─ lib/python3.13/site-packages/cppjit-0.1.0a1.dist-info/direct_url.json (85 B)
+ │ │   ├─ info/about.json (709 B)
+ │ │   ├─ info/hash_input.json (155 B)
+ │ │   ├─ info/index.json (521 B)
+ │ │   ├─ info/licenses/LICENSE.txt (2.83 KiB)
+ │ │   ├─ info/licenses/cppinterop-src/LICENSE.txt (12.86 KiB)
+ │ │   ├─ info/paths.json (87.17 KiB)
+ │ │   ├─ info/recipe/LICENSE.txt (2.83 KiB)
+ │ │   ├─ info/recipe/recipe.yaml (2.81 KiB)
+ │ │   ├─ info/recipe/rendered_recipe.yaml (83.28 KiB)
+ │ │   ├─ info/recipe/smoke.py (468 B)
+ │ │   ├─ info/recipe/variant_config.yaml (127 B)
+ │ │   └─ info/tests/tests.yaml (150 B)
+ │ │ 
+ │ │ Package statistics: 357 files (345 content, 12 metadata), total size: 224.32 MiB
+ │ │ Largest files:
+ │ │   207.62 MiB - lib/python3.13/site-packages/cppjit/interop/lib/libclangCppInterOp.so
+ │ │   3.04 MiB - lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/arm_neon.h
+ │ │   2.05 MiB - lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/arm_sve.h
+ │ │   1.48 MiB - lib/python3.13/site-packages/cppjit/interop/lib/clang/21/include/arm_mve.h
+ │ │   1.31 MiB - lib/python3.13/site-packages/cppjit/libcppjit.so
+ │ │ Creating target folder '/cf/output/linux-64'
+ │ │ Compressing archive...
+ │ │ Archive written to '/cf/output/linux-64/cppjit-0.1.0a1-py313h67a92c2_0.conda'
+ │ │
+ │ ╰─────────────────── (took 3 seconds)
+ │
+ ╰─────────────────── (took 50 seconds)
+ Collecting tests from '/tmp/.tmpKGWK0g/cppjit-0.1.0a1-py313h67a92c2_0'
+
+ ╭─ Running python test(s)
+ │
+ │ ╭─ Testing with default python version
+ │ │
+ │ │ ╭─ Resolving test environment
+ │ │ │   Platform: linux-64 [__unix=0=0, __linux=7.0.0=0, __glibc=2.39=0, __archspec=1=zen4]
+ │ │ │   Channels: 
+ │ │ │    - file:///tmp/.tmp23ozPL/
+ │ │ │    - file:///cf/output/
+ │ │ │    - conda-forge
+ │ │ │   Specs:
+ │ │ │    - cppjit ==0.1.0a1 py313h67a92c2_0
+ │ │ │    - pip
+ │ │ │ 
+ │ │ │ ╭──────────────────────────┬───────────┬──────────────────────┬─────────────┬────────────╮
+ │ │ │ │ Package                  ┆ Version   ┆ Build                ┆ Channel     ┆       Size │
+ │ │ │ ╞══════════════════════════╪═══════════╪══════════════════════╪═════════════╪════════════╡
+ │ │ │ │ _openmp_mutex            ┆ 4.5       ┆ 20_gnu               ┆ conda-forge ┆  28.27 KiB │
+ │ │ │ │ binutils_impl_linux-64   ┆ 2.46.1    ┆ default_hfdba357_102 ┆ conda-forge ┆   3.54 MiB │
+ │ │ │ │ bzip2                    ┆ 1.0.8     ┆ hda65f42_10          ┆ conda-forge ┆ 251.77 KiB │
+ │ │ │ │ ca-certificates          ┆ 2026.7.22 ┆ hbd8a1cb_0           ┆ conda-forge ┆ 128.69 KiB │
+ │ │ │ │ conda-gcc-specs          ┆ 15.3.0    ┆ h8846f6e_4           ┆ conda-forge ┆  31.87 KiB │
+ │ │ │ │ cppjit                   ┆ 0.1.0a1   ┆ py313h67a92c2_0      ┆ .tmp23ozPL  ┆  61.56 MiB │
+ │ │ │ │ cxx-compiler             ┆ 2.0.0     ┆ hdab9b82_0           ┆ conda-forge ┆   6.81 KiB │
+ │ │ │ │ gcc                      ┆ 15.3.0    ┆ hc6a0c74_4           ┆ conda-forge ┆  28.74 KiB │
+ │ │ │ │ gcc_impl_linux-64        ┆ 15.3.0    ┆ h6f13dc8_4           ┆ conda-forge ┆  79.01 MiB │
+ │ │ │ │ gxx                      ┆ 15.3.0    ┆ hc6a0c74_4           ┆ conda-forge ┆  28.22 KiB │
+ │ │ │ │ gxx_impl_linux-64        ┆ 15.3.0    ┆ h90d9265_4           ┆ conda-forge ┆  15.50 MiB │
+ │ │ │ │ kernel-headers_linux-64  ┆ 6.12.0    ┆ he073ed8_6           ┆ conda-forge ┆   1.47 MiB │
+ │ │ │ │ ld_impl_linux-64         ┆ 2.46.1    ┆ default_hbd61a6d_102 ┆ conda-forge ┆ 727.83 KiB │
+ │ │ │ │ libexpat                 ┆ 2.8.1     ┆ hecca717_1           ┆ conda-forge ┆  76.03 KiB │
+ │ │ │ │ libffi                   ┆ 3.7.0     ┆ h81df57d_1           ┆ conda-forge ┆  66.41 KiB │
+ │ │ │ │ libgcc                   ┆ 16.2.0    ┆ ha9f2e26_4           ┆ conda-forge ┆   1.01 MiB │
+ │ │ │ │ libgcc-devel_linux-64    ┆ 15.3.0    ┆ h2b852eb_104         ┆ conda-forge ┆   2.95 MiB │
+ │ │ │ │ libgomp                  ┆ 16.2.0    ┆ he0feb66_4           ┆ conda-forge ┆ 624.97 KiB │
+ │ │ │ │ libiconv                 ┆ 1.18      ┆ h0cb94f2_3           ┆ conda-forge ┆ 770.97 KiB │
+ │ │ │ │ liblzma                  ┆ 5.8.3     ┆ hb03c661_1           ┆ conda-forge ┆ 110.35 KiB │
+ │ │ │ │ libmpdec                 ┆ 4.0.0     ┆ hb03c661_2           ┆ conda-forge ┆  90.58 KiB │
+ │ │ │ │ libpython                ┆ 3.13.15   ┆ hdc7f604_103_cp313   ┆ conda-forge ┆   9.26 MiB │
+ │ │ │ │ libsanitizer             ┆ 15.3.0    ┆ h54950a5_4           ┆ conda-forge ┆   7.23 MiB │
+ │ │ │ │ libsqlite                ┆ 3.53.4    ┆ h0737f62_1           ┆ conda-forge ┆ 946.18 KiB │
+ │ │ │ │ libstdcxx                ┆ 16.2.0    ┆ h934c35e_4           ┆ conda-forge ┆   6.31 MiB │
+ │ │ │ │ libstdcxx-devel_linux-64 ┆ 15.3.0    ┆ hb2c5482_104         ┆ conda-forge ┆  19.71 MiB │
+ │ │ │ │ libuuid                  ┆ 2.42.3    ┆ hcfc3c73_0           ┆ conda-forge ┆  39.06 KiB │
+ │ │ │ │ libxml2                  ┆ 2.15.4    ┆ ha7a5771_0           ┆ conda-forge ┆  45.85 KiB │
+ │ │ │ │ libxml2-16               ┆ 2.15.4    ┆ hbdfff7e_0           ┆ conda-forge ┆ 552.46 KiB │
+ │ │ │ │ libzlib                  ┆ 1.3.2     ┆ h25fd6f3_3           ┆ conda-forge ┆  62.22 KiB │
+ │ │ │ │ ncurses                  ┆ 6.6       ┆ hdb14827_1           ┆ conda-forge ┆ 889.84 KiB │
+ │ │ │ │ openssl                  ┆ 3.6.4     ┆ h781a0a9_0           ┆ conda-forge ┆   3.05 MiB │
+ │ │ │ │ pip                      ┆ 26.2.1    ┆ pyh145f28c_0         ┆ conda-forge ┆   1.14 MiB │
+ │ │ │ │ python                   ┆ 3.13.15   ┆ hf47f18c_103_cp313   ┆ conda-forge ┆  23.24 MiB │
+ │ │ │ │ python_abi               ┆ 3.13      ┆ 9_cp313              ┆ conda-forge ┆   6.61 KiB │
+ │ │ │ │ readline                 ┆ 8.3       ┆ hd6e31c0_1           ┆ conda-forge ┆ 340.72 KiB │
+ │ │ │ │ sysroot_linux-64         ┆ 2.39      ┆ hc4b9eeb_6           ┆ conda-forge ┆  40.10 MiB │
+ │ │ │ │ tk                       ┆ 8.6.13    ┆ noxft_h1df4ec4_4     ┆ conda-forge ┆   3.40 MiB │
+ │ │ │ │ tzdata                   ┆ 2026c     ┆ h151e31d_0           ┆ conda-forge ┆ 116.06 KiB │
+ │ │ │ │ zstd                     ┆ 1.5.7     ┆ hb78ec9c_7           ┆ conda-forge ┆ 587.21 KiB │
+ │ │ │ ╰──────────────────────────┴───────────┴──────────────────────┴─────────────┴────────────╯
+ │ │ │
+ │ │ ╰─────────────────── (took 0 seconds)
+ │ │
+ │ │ ╭─ Installing test environment
+ │ │ │ ✔ Successfully updated the test environment
+ │ │ │
+ │ │ ╰─────────────────── (took 1 second)
+ │ │ + $PREFIX/bin/python $SRC_DIR/conda_build_script.py
+ │ │ ✔ python imports test passed!
+ │ │ + pip check
+ │ │ No broken requirements found.
+ │ │ ✔ pip check passed!
+ │ │
+ │ ╰─────────────────── (took 2 seconds)
+ │
+ ╰─────────────────── (took 2 seconds)
+
+ ╭─ Running script test for recipe: cppjit-0.1.0a1-py313h67a92c2_0.conda
+ │
+ │ ╭─ Resolving test environment
+ │ │   Platform: linux-64 [__unix=0=0, __linux=7.0.0=0, __glibc=2.39=0, __archspec=1=zen4]
+ │ │   Channels: 
+ │ │    - file:///tmp/.tmp23ozPL/
+ │ │    - file:///cf/output/
+ │ │    - conda-forge
+ │ │   Specs:
+ │ │    - cppjit ==0.1.0a1 py313h67a92c2_0
+ │ │ 
+ │ │ ╭──────────────────────────┬───────────┬──────────────────────┬─────────────┬────────────╮
+ │ │ │ Package                  ┆ Version   ┆ Build                ┆ Channel     ┆       Size │
+ │ │ ╞══════════════════════════╪═══════════╪══════════════════════╪═════════════╪════════════╡
+ │ │ │ _openmp_mutex            ┆ 4.5       ┆ 20_gnu               ┆ conda-forge ┆  28.27 KiB │
+ │ │ │ binutils_impl_linux-64   ┆ 2.46.1    ┆ default_hfdba357_102 ┆ conda-forge ┆   3.54 MiB │
+ │ │ │ bzip2                    ┆ 1.0.8     ┆ hda65f42_10          ┆ conda-forge ┆ 251.77 KiB │
+ │ │ │ ca-certificates          ┆ 2026.7.22 ┆ hbd8a1cb_0           ┆ conda-forge ┆ 128.69 KiB │
+ │ │ │ conda-gcc-specs          ┆ 15.3.0    ┆ h8846f6e_4           ┆ conda-forge ┆  31.87 KiB │
+ │ │ │ cppjit                   ┆ 0.1.0a1   ┆ py313h67a92c2_0      ┆ .tmp23ozPL  ┆  61.56 MiB │
+ │ │ │ cxx-compiler             ┆ 2.0.0     ┆ hdab9b82_0           ┆ conda-forge ┆   6.81 KiB │
+ │ │ │ gcc                      ┆ 15.3.0    ┆ hc6a0c74_4           ┆ conda-forge ┆  28.74 KiB │
+ │ │ │ gcc_impl_linux-64        ┆ 15.3.0    ┆ h6f13dc8_4           ┆ conda-forge ┆  79.01 MiB │
+ │ │ │ gxx                      ┆ 15.3.0    ┆ hc6a0c74_4           ┆ conda-forge ┆  28.22 KiB │
+ │ │ │ gxx_impl_linux-64        ┆ 15.3.0    ┆ h90d9265_4           ┆ conda-forge ┆  15.50 MiB │
+ │ │ │ kernel-headers_linux-64  ┆ 6.12.0    ┆ he073ed8_6           ┆ conda-forge ┆   1.47 MiB │
+ │ │ │ ld_impl_linux-64         ┆ 2.46.1    ┆ default_hbd61a6d_102 ┆ conda-forge ┆ 727.83 KiB │
+ │ │ │ libexpat                 ┆ 2.8.1     ┆ hecca717_1           ┆ conda-forge ┆  76.03 KiB │
+ │ │ │ libffi                   ┆ 3.7.0     ┆ h81df57d_1           ┆ conda-forge ┆  66.41 KiB │
+ │ │ │ libgcc                   ┆ 16.2.0    ┆ ha9f2e26_4           ┆ conda-forge ┆   1.01 MiB │
+ │ │ │ libgcc-devel_linux-64    ┆ 15.3.0    ┆ h2b852eb_104         ┆ conda-forge ┆   2.95 MiB │
+ │ │ │ libgomp                  ┆ 16.2.0    ┆ he0feb66_4           ┆ conda-forge ┆ 624.97 KiB │
+ │ │ │ libiconv                 ┆ 1.18      ┆ h0cb94f2_3           ┆ conda-forge ┆ 770.97 KiB │
+ │ │ │ liblzma                  ┆ 5.8.3     ┆ hb03c661_1           ┆ conda-forge ┆ 110.35 KiB │
+ │ │ │ libmpdec                 ┆ 4.0.0     ┆ hb03c661_2           ┆ conda-forge ┆  90.58 KiB │
+ │ │ │ libpython                ┆ 3.13.15   ┆ hdc7f604_103_cp313   ┆ conda-forge ┆   9.26 MiB │
+ │ │ │ libsanitizer             ┆ 15.3.0    ┆ h54950a5_4           ┆ conda-forge ┆   7.23 MiB │
+ │ │ │ libsqlite                ┆ 3.53.4    ┆ h0737f62_1           ┆ conda-forge ┆ 946.18 KiB │
+ │ │ │ libstdcxx                ┆ 16.2.0    ┆ h934c35e_4           ┆ conda-forge ┆   6.31 MiB │
+ │ │ │ libstdcxx-devel_linux-64 ┆ 15.3.0    ┆ hb2c5482_104         ┆ conda-forge ┆  19.71 MiB │
+ │ │ │ libuuid                  ┆ 2.42.3    ┆ hcfc3c73_0           ┆ conda-forge ┆  39.06 KiB │
+ │ │ │ libxml2                  ┆ 2.15.4    ┆ ha7a5771_0           ┆ conda-forge ┆  45.85 KiB │
+ │ │ │ libxml2-16               ┆ 2.15.4    ┆ hbdfff7e_0           ┆ conda-forge ┆ 552.46 KiB │
+ │ │ │ libzlib                  ┆ 1.3.2     ┆ h25fd6f3_3           ┆ conda-forge ┆  62.22 KiB │
+ │ │ │ ncurses                  ┆ 6.6       ┆ hdb14827_1           ┆ conda-forge ┆ 889.84 KiB │
+ │ │ │ openssl                  ┆ 3.6.4     ┆ h781a0a9_0           ┆ conda-forge ┆   3.05 MiB │
+ │ │ │ python                   ┆ 3.13.15   ┆ hf47f18c_103_cp313   ┆ conda-forge ┆  23.24 MiB │
+ │ │ │ python_abi               ┆ 3.13      ┆ 9_cp313              ┆ conda-forge ┆   6.61 KiB │
+ │ │ │ readline                 ┆ 8.3       ┆ hd6e31c0_1           ┆ conda-forge ┆ 340.72 KiB │
+ │ │ │ sysroot_linux-64         ┆ 2.39      ┆ hc4b9eeb_6           ┆ conda-forge ┆  40.10 MiB │
+ │ │ │ tk                       ┆ 8.6.13    ┆ noxft_h1df4ec4_4     ┆ conda-forge ┆   3.40 MiB │
+ │ │ │ tzdata                   ┆ 2026c     ┆ h151e31d_0           ┆ conda-forge ┆ 116.06 KiB │
+ │ │ │ zstd                     ┆ 1.5.7     ┆ hb78ec9c_7           ┆ conda-forge ┆ 587.21 KiB │
+ │ │ ╰──────────────────────────┴───────────┴──────────────────────┴─────────────┴────────────╯
+ │ │
+ │ ╰─────────────────── (took 0 seconds)
+ │
+ │ ╭─ Installing test environment
+ │ │ ✔ Successfully updated the test environment
+ │ │
+ │ ╰─────────────────── (took 0 seconds)
+ │ Testing commands:
+ │ + cd $PREFIX/etc/conda/test-files/cppjit/1
+ │ + python smoke.py
+ │ conda smoke passed
+ │
+ ╰─────────────────── (took 1 second)
+ ✔ all tests passed!
+
+ ╭─ Build summary
+ │
+ │ ╭─ Build summary for recipe: cppjit-0.1.0a1-py313h67a92c2_0
+ │ │ Variant configuration (hash: py313h67a92c2_0):
+ │ │ ╭──────────────────┬────────────╮
+ │ │ │ build_platform   ┆ "linux-64" │
+ │ │ │ c_stdlib         ┆ "sysroot"  │
+ │ │ │ c_stdlib_version ┆ "2.17"     │
+ │ │ │ cxx_compiler     ┆ "gxx"      │
+ │ │ │ python           ┆ "3.13.*"   │
+ │ │ │ target_platform  ┆ "linux-64" │
+ │ │ ╰──────────────────┴────────────╯
+ │ │ 
+ │ │ Build dependencies:
+ │ │ ╭──────────────────────────┬─────────────────────────┬──────────────┬──────────────────────┬─────────────┬────────────╮
+ │ │ │ Package                  ┆ Spec                    ┆ Version      ┆ Build                ┆ Channel     ┆       Size │
+ │ │ ╞══════════════════════════╪═════════════════════════╪══════════════╪══════════════════════╪═════════════╪════════════╡
+ │ │ │ cmake                    ┆ cmake                   ┆ 4.4.3        ┆ hff7ac6b_0           ┆ conda-forge ┆  24.87 MiB │
+ │ │ │ gxx_linux-64             ┆ gxx_linux-64            ┆ 16.2.0       ┆ h38dc33c_1           ┆ conda-forge ┆  27.50 KiB │
+ │ │ │ lld                      ┆ lld                     ┆ 23.1.1       ┆ h5985d43_0           ┆ conda-forge ┆  11.48 MiB │
+ │ │ │ ninja                    ┆ ninja                   ┆ 1.13.2       ┆ h171cf75_1           ┆ conda-forge ┆ 182.39 KiB │
+ │ │ │ sysroot_linux-64         ┆ sysroot_linux-64 2.17.* ┆ 2.17         ┆ h0157908_18          ┆ conda-forge ┆  14.46 MiB │
+ │ │ │ _openmp_mutex            ┆                         ┆ 4.5          ┆ 20_gnu               ┆ conda-forge ┆  28.27 KiB │
+ │ │ │ binutils_impl_linux-64   ┆                         ┆ 2.46.1       ┆ default_hfdba357_102 ┆ conda-forge ┆   3.54 MiB │
+ │ │ │ binutils_linux-64        ┆                         ┆ 2.46.1       ┆ default_h4852527_102 ┆ conda-forge ┆  35.49 KiB │
+ │ │ │ bzip2                    ┆                         ┆ 1.0.8        ┆ hda65f42_10          ┆ conda-forge ┆ 251.77 KiB │
+ │ │ │ c-ares                   ┆                         ┆ 1.34.8       ┆ hebe6cf0_2           ┆ conda-forge ┆ 223.34 KiB │
+ │ │ │ ca-certificates          ┆                         ┆ 2026.7.22    ┆ hbd8a1cb_0           ┆ conda-forge ┆ 128.69 KiB │
+ │ │ │ gcc_impl_linux-64        ┆                         ┆ 16.2.0       ┆ h176d5d0_4           ┆ conda-forge ┆  82.47 MiB │
+ │ │ │ gcc_linux-64             ┆                         ┆ 16.2.0       ┆ h0ab548f_1           ┆ conda-forge ┆  29.08 KiB │
+ │ │ │ gxx_impl_linux-64        ┆                         ┆ 16.2.0       ┆ h0d273dc_4           ┆ conda-forge ┆  16.85 MiB │
+ │ │ │ icu                      ┆                         ┆ 78.3         ┆ py310h44b86e0_2      ┆ conda-forge ┆  13.79 MiB │
+ │ │ │ kernel-headers_linux-64  ┆                         ┆ 3.10.0       ┆ he073ed8_18          ┆ conda-forge ┆ 921.37 KiB │
+ │ │ │ keyutils                 ┆                         ┆ 1.6.3        ┆ h7cc23a3_1           ┆ conda-forge ┆ 132.12 KiB │
+ │ │ │ krb5                     ┆                         ┆ 1.22.2       ┆ hbc21106_2           ┆ conda-forge ┆   1.33 MiB │
+ │ │ │ ld_impl_linux-64         ┆                         ┆ 2.46.1       ┆ default_hbd61a6d_102 ┆ conda-forge ┆ 727.83 KiB │
+ │ │ │ libcurl                  ┆                         ┆ 8.22.0       ┆ ha042cf0_0           ┆ conda-forge ┆ 487.94 KiB │
+ │ │ │ libedit                  ┆                         ┆ 3.1.20250104 ┆ pl5321h373387f_1     ┆ conda-forge ┆ 131.93 KiB │
+ │ │ │ libev                    ┆                         ┆ 4.33         ┆ h280c20c_3           ┆ conda-forge ┆  42.21 KiB │
+ │ │ │ libexpat                 ┆                         ┆ 2.8.1        ┆ hecca717_1           ┆ conda-forge ┆  76.03 KiB │
+ │ │ │ libgcc                   ┆                         ┆ 16.2.0       ┆ ha9f2e26_4           ┆ conda-forge ┆   1.01 MiB │
+ │ │ │ libgcc-devel_linux-64    ┆                         ┆ 16.2.0       ┆ he3ce08f_104         ┆ conda-forge ┆   2.95 MiB │
+ │ │ │ libgomp                  ┆                         ┆ 16.2.0       ┆ he0feb66_4           ┆ conda-forge ┆ 624.97 KiB │
+ │ │ │ libiconv                 ┆                         ┆ 1.18         ┆ h0cb94f2_3           ┆ conda-forge ┆ 770.97 KiB │
+ │ │ │ libllvm23                ┆                         ┆ 23.1.1       ┆ h474f4eb_0           ┆ conda-forge ┆  42.98 MiB │
+ │ │ │ liblzma                  ┆                         ┆ 5.8.3        ┆ hb03c661_1           ┆ conda-forge ┆ 110.35 KiB │
+ │ │ │ libnghttp2               ┆                         ┆ 1.68.1       ┆ h74cf4be_1           ┆ conda-forge ┆ 634.74 KiB │
+ │ │ │ libpsl                   ┆                         ┆ 0.23.1       ┆ hd9e3e90_1           ┆ conda-forge ┆  70.82 KiB │
+ │ │ │ libsanitizer             ┆                         ┆ 16.2.0       ┆ h3048135_4           ┆ conda-forge ┆   7.81 MiB │
+ │ │ │ libssh2                  ┆                         ┆ 1.11.1       ┆ h6154650_1           ┆ conda-forge ┆ 298.87 KiB │
+ │ │ │ libstdcxx                ┆                         ┆ 16.2.0       ┆ h934c35e_4           ┆ conda-forge ┆   6.31 MiB │
+ │ │ │ libstdcxx-devel_linux-64 ┆                         ┆ 16.2.0       ┆ h86e191b_104         ┆ conda-forge ┆  21.41 MiB │
+ │ │ │ libuv                    ┆                         ┆ 1.52.1       ┆ h280c20c_1           ┆ conda-forge ┆ 410.20 KiB │
+ │ │ │ libxml2                  ┆                         ┆ 2.15.4       ┆ h7df9aa5_0           ┆ conda-forge ┆  45.97 KiB │
+ │ │ │ libxml2-16               ┆                         ┆ 2.15.4       ┆ hf3af7cc_0           ┆ conda-forge ┆ 555.86 KiB │
+ │ │ │ libzlib                  ┆                         ┆ 1.3.2        ┆ h25fd6f3_3           ┆ conda-forge ┆  62.22 KiB │
+ │ │ │ ncurses                  ┆                         ┆ 6.6          ┆ hdb14827_1           ┆ conda-forge ┆ 889.84 KiB │
+ │ │ │ openssl                  ┆                         ┆ 3.6.4        ┆ h781a0a9_0           ┆ conda-forge ┆   3.05 MiB │
+ │ │ │ rhash                    ┆                         ┆ 1.4.6        ┆ hb03c661_2           ┆ conda-forge ┆ 190.42 KiB │
+ │ │ │ tzdata                   ┆                         ┆ 2026c        ┆ h151e31d_0           ┆ conda-forge ┆ 116.06 KiB │
+ │ │ │ zstd                     ┆                         ┆ 1.5.7        ┆ hb78ec9c_7           ┆ conda-forge ┆ 587.21 KiB │
+ │ │ ╰──────────────────────────┴─────────────────────────┴──────────────┴──────────────────────┴─────────────┴────────────╯
+ │ │ 
+ │ │ Host dependencies:
+ │ │ ╭──────────────────────────┬──────────────────────────────────────────────┬───────────┬────────────────────────┬─────────────┬────────────╮
+ │ │ │ Package                  ┆ Spec                                         ┆ Version   ┆ Build                  ┆ Channel     ┆       Size │
+ │ │ ╞══════════════════════════╪══════════════════════════════════════════════╪═══════════╪════════════════════════╪═════════════╪════════════╡
+ │ │ │ clangdev                 ┆ clangdev 21.*                                ┆ 21.1.8    ┆ default_haeba491_6     ┆ conda-forge ┆  49.84 MiB │
+ │ │ │ libgcc                   ┆ libgcc >=16 (RE of [build: gxx_linux-64])    ┆ 16.2.0    ┆ ha9f2e26_4             ┆ conda-forge ┆   1.01 MiB │
+ │ │ │ libstdcxx                ┆ libstdcxx >=16 (RE of [build: gxx_linux-64]) ┆ 16.2.0    ┆ h934c35e_4             ┆ conda-forge ┆   6.31 MiB │
+ │ │ │ libxml2                  ┆ libxml2                                      ┆ 2.15.4    ┆ ha7a5771_0             ┆ conda-forge ┆  45.85 KiB │
+ │ │ │ llvmdev                  ┆ llvmdev 21.*                                 ┆ 21.1.8    ┆ h7399f5f_1             ┆ conda-forge ┆  64.53 MiB │
+ │ │ │ pip                      ┆ pip                                          ┆ 26.2.1    ┆ pyh145f28c_0           ┆ conda-forge ┆   1.14 MiB │
+ │ │ │ python                   ┆ python 3.13.* (V)                            ┆ 3.13.15   ┆ hf47f18c_103_cp313     ┆ conda-forge ┆  23.24 MiB │
+ │ │ │ scikit-build-core        ┆ scikit-build-core >=1.0                      ┆ 1.0.3     ┆ pyh04d0eab_0           ┆ conda-forge ┆ 331.64 KiB │
+ │ │ │ zlib                     ┆ zlib                                         ┆ 1.3.2     ┆ h25fd6f3_3             ┆ conda-forge ┆  93.88 KiB │
+ │ │ │ zstd                     ┆ zstd                                         ┆ 1.5.7     ┆ hb78ec9c_7             ┆ conda-forge ┆ 587.21 KiB │
+ │ │ │ _openmp_mutex            ┆                                              ┆ 4.5       ┆ 20_gnu                 ┆ conda-forge ┆  28.27 KiB │
+ │ │ │ binutils                 ┆                                              ┆ 2.46.1    ┆ default_h4852527_102   ┆ conda-forge ┆  34.57 KiB │
+ │ │ │ binutils_impl_linux-64   ┆                                              ┆ 2.46.1    ┆ default_hfdba357_102   ┆ conda-forge ┆   3.54 MiB │
+ │ │ │ bzip2                    ┆                                              ┆ 1.0.8     ┆ hda65f42_10            ┆ conda-forge ┆ 251.77 KiB │
+ │ │ │ ca-certificates          ┆                                              ┆ 2026.7.22 ┆ hbd8a1cb_0             ┆ conda-forge ┆ 128.69 KiB │
+ │ │ │ clang                    ┆                                              ┆ 21.1.8    ┆ default_cfg_hfed155c_6 ┆ conda-forge ┆  27.94 KiB │
+ │ │ │ clang-21                 ┆                                              ┆ 21.1.8    ┆ default_h6209e06_6     ┆ conda-forge ┆ 811.97 KiB │
+ │ │ │ clang-format             ┆                                              ┆ 21.1.8    ┆ default_hbe8b877_6     ┆ conda-forge ┆  27.42 KiB │
+ │ │ │ clang-format-21          ┆                                              ┆ 21.1.8    ┆ default_h6209e06_6     ┆ conda-forge ┆  69.30 KiB │
+ │ │ │ clang-scan-deps          ┆                                              ┆ 21.1.8    ┆ default_h6209e06_6     ┆ conda-forge ┆ 102.19 KiB │
+ │ │ │ clang-tools              ┆                                              ┆ 21.1.8    ┆ default_h5c1a867_6     ┆ conda-forge ┆  21.26 MiB │
+ │ │ │ clang_impl_linux-64      ┆                                              ┆ 21.1.8    ┆ default_hbd963a2_6     ┆ conda-forge ┆  27.54 KiB │
+ │ │ │ clangxx                  ┆                                              ┆ 21.1.8    ┆ default_cfg_hfed155c_6 ┆ conda-forge ┆  27.77 KiB │
+ │ │ │ clangxx_impl_linux-64    ┆                                              ┆ 21.1.8    ┆ default_hbd963a2_6     ┆ conda-forge ┆  27.48 KiB │
+ │ │ │ compiler-rt              ┆                                              ┆ 21.1.8    ┆ ha770c72_2             ┆ conda-forge ┆  15.84 KiB │
+ │ │ │ compiler-rt21            ┆                                              ┆ 21.1.8    ┆ h7148c6a_2             ┆ conda-forge ┆ 112.19 KiB │
+ │ │ │ compiler-rt21_linux-64   ┆                                              ┆ 21.1.8    ┆ h0e38de2_2             ┆ conda-forge ┆  44.25 MiB │
+ │ │ │ compiler-rt_linux-64     ┆                                              ┆ 21.1.8    ┆ ha770c72_2             ┆ conda-forge ┆  15.85 KiB │
+ │ │ │ exceptiongroup           ┆                                              ┆ 1.3.1     ┆ pyhd8ed1ab_0           ┆ conda-forge ┆  20.83 KiB │
+ │ │ │ importlib-resources      ┆                                              ┆ 7.1.0     ┆ pyhd8ed1ab_0           ┆ conda-forge ┆  10.11 KiB │
+ │ │ │ importlib_resources      ┆                                              ┆ 7.1.0     ┆ pyhd8ed1ab_0           ┆ conda-forge ┆  33.99 KiB │
+ │ │ │ kernel-headers_linux-64  ┆                                              ┆ 6.12.0    ┆ he073ed8_6             ┆ conda-forge ┆   1.47 MiB │
+ │ │ │ ld_impl_linux-64         ┆                                              ┆ 2.46.1    ┆ default_hbd61a6d_102   ┆ conda-forge ┆ 727.83 KiB │
+ │ │ │ libclang                 ┆                                              ┆ 21.1.8    ┆ default_hbe8b877_6     ┆ conda-forge ┆  27.45 KiB │
+ │ │ │ libclang-cpp             ┆                                              ┆ 21.1.8    ┆ default_hbe8b877_6     ┆ conda-forge ┆  27.47 KiB │
+ │ │ │ libclang-cpp21.1         ┆                                              ┆ 21.1.8    ┆ default_h6209e06_6     ┆ conda-forge ┆  20.48 MiB │
+ │ │ │ libclang13               ┆                                              ┆ 21.1.8    ┆ default_h792aff9_6     ┆ conda-forge ┆  12.02 MiB │
+ │ │ │ libcompiler-rt           ┆                                              ┆ 21.1.8    ┆ h7148c6a_2             ┆ conda-forge ┆   9.79 MiB │
+ │ │ │ libexpat                 ┆                                              ┆ 2.8.1     ┆ hecca717_1             ┆ conda-forge ┆  76.03 KiB │
+ │ │ │ libffi                   ┆                                              ┆ 3.7.0     ┆ h81df57d_1             ┆ conda-forge ┆  66.41 KiB │
+ │ │ │ libgcc-devel_linux-64    ┆                                              ┆ 16.2.0    ┆ he3ce08f_104           ┆ conda-forge ┆   2.95 MiB │
+ │ │ │ libgomp                  ┆                                              ┆ 16.2.0    ┆ he0feb66_4             ┆ conda-forge ┆ 624.97 KiB │
+ │ │ │ libiconv                 ┆                                              ┆ 1.18      ┆ h0cb94f2_3             ┆ conda-forge ┆ 770.97 KiB │
+ │ │ │ libllvm21                ┆                                              ┆ 21.1.8    ┆ h474f4eb_1             ┆ conda-forge ┆  42.72 MiB │
+ │ │ │ liblzma                  ┆                                              ┆ 5.8.3     ┆ hb03c661_1             ┆ conda-forge ┆ 110.35 KiB │
+ │ │ │ libmpdec                 ┆                                              ┆ 4.0.0     ┆ hb03c661_2             ┆ conda-forge ┆  90.58 KiB │
+ │ │ │ libpython                ┆                                              ┆ 3.13.15   ┆ hdc7f604_103_cp313     ┆ conda-forge ┆   9.26 MiB │
+ │ │ │ libsqlite                ┆                                              ┆ 3.53.4    ┆ h0737f62_1             ┆ conda-forge ┆ 946.18 KiB │
+ │ │ │ libstdcxx-devel_linux-64 ┆                                              ┆ 16.2.0    ┆ h86e191b_104           ┆ conda-forge ┆  21.41 MiB │
+ │ │ │ libuuid                  ┆                                              ┆ 2.42.3    ┆ hcfc3c73_0             ┆ conda-forge ┆  39.06 KiB │
+ │ │ │ libxml2-16               ┆                                              ┆ 2.15.4    ┆ hbdfff7e_0             ┆ conda-forge ┆ 552.46 KiB │
+ │ │ │ libzlib                  ┆                                              ┆ 1.3.2     ┆ h25fd6f3_3             ┆ conda-forge ┆  62.22 KiB │
+ │ │ │ llvm-openmp              ┆                                              ┆ 23.1.1    ┆ h7148c6a_0             ┆ conda-forge ┆   5.84 MiB │
+ │ │ │ llvm-tools               ┆                                              ┆ 21.1.8    ┆ h7148c6a_1             ┆ conda-forge ┆  86.61 KiB │
+ │ │ │ llvm-tools-21            ┆                                              ┆ 21.1.8    ┆ h7399f5f_1             ┆ conda-forge ┆  25.38 MiB │
+ │ │ │ ncurses                  ┆                                              ┆ 6.6       ┆ hdb14827_1             ┆ conda-forge ┆ 889.84 KiB │
+ │ │ │ openssl                  ┆                                              ┆ 3.6.4     ┆ h781a0a9_0             ┆ conda-forge ┆   3.05 MiB │
+ │ │ │ packaging                ┆                                              ┆ 26.3      ┆ pyhc364b38_0           ┆ conda-forge ┆ 113.64 KiB │
+ │ │ │ pathspec                 ┆                                              ┆ 1.1.1     ┆ pyhd8ed1ab_0           ┆ conda-forge ┆  55.23 KiB │
+ │ │ │ python_abi               ┆                                              ┆ 3.13      ┆ 9_cp313                ┆ conda-forge ┆   6.61 KiB │
+ │ │ │ readline                 ┆                                              ┆ 8.3       ┆ hd6e31c0_1             ┆ conda-forge ┆ 340.72 KiB │
+ │ │ │ sysroot_linux-64         ┆                                              ┆ 2.39      ┆ hc4b9eeb_6             ┆ conda-forge ┆  40.10 MiB │
+ │ │ │ tk                       ┆                                              ┆ 8.6.13    ┆ noxft_h1df4ec4_4       ┆ conda-forge ┆   3.40 MiB │
+ │ │ │ tomli                    ┆                                              ┆ 2.4.1     ┆ pyhcf101f3_0           ┆ conda-forge ┆  21.06 KiB │
+ │ │ │ typing_extensions        ┆                                              ┆ 4.16.0    ┆ pyhcf101f3_0           ┆ conda-forge ┆  51.40 KiB │
+ │ │ │ tzdata                   ┆                                              ┆ 2026c     ┆ h151e31d_0             ┆ conda-forge ┆ 116.06 KiB │
+ │ │ │ zipp                     ┆                                              ┆ 4.1.0     ┆ pyhcf101f3_0           ┆ conda-forge ┆  23.62 KiB │
+ │ │ ╰──────────────────────────┴──────────────────────────────────────────────┴───────────┴────────────────────────┴─────────────┴────────────╯
+ │ │ 
+ │ │ Run dependencies:
+ │ │ ╭──────────────────┬──────────────────────────────────────────────────╮
+ │ │ │ Name             ┆ Spec                                             │
+ │ │ ╞══════════════════╪══════════════════════════════════════════════════╡
+ │ │ │ Run dependencies ┆                                                  │
+ │ │ │ __glibc          ┆ >=2.17,<3.0.a0 (RE of [build: sysroot_linux-64]) │
+ │ │ │ cxx-compiler     ┆ *                                                │
+ │ │ │ libgcc           ┆ >=16 (RE of [build: gxx_linux-64])               │
+ │ │ │ libstdcxx        ┆ >=16 (RE of [build: gxx_linux-64])               │
+ │ │ │ libxml2          ┆ (RE of [host: libxml2])                          │
+ │ │ │ libxml2-16       ┆ >=2.15.4 (RE of [host: libxml2])                 │
+ │ │ │ libzlib          ┆ >=1.3.2,<2.0a0 (RE of [host: zlib])              │
+ │ │ │ python           ┆ *                                                │
+ │ │ │ python_abi       ┆ 3.13.* *_cp313 (RE of [host: python])            │
+ │ │ │ zstd             ┆ >=1.5.7,<1.6.0a0 (RE of [host: zstd])            │
+ │ │ ╰──────────────────┴──────────────────────────────────────────────────╯
+ │ │ 
+ │ │ ⚠ warning Warnings:
+ │ │ ⚠ warning Overdepending against libxml2-16
+ │ │ Artifact: /cf/output/linux-64/cppjit-0.1.0a1-py313h67a92c2_0.conda (61.56 MiB)
+ │ │
+ │ ╰─────────────────── (took 0 seconds)
+ │
+ ╰─────────────────── (took 0 seconds)
++ echo 'RATTLER-BUILD rc=0'
+RATTLER-BUILD rc=0

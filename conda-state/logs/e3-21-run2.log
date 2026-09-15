@@ -1,0 +1,184 @@
+............................................................F.FF.FFFFFFF [ 29%]
+FJIT session error: Failed to materialize symbols: { (main, { _ZNSt6vectorIiSaIiEED2Ev }) }
+make_dtor_wrapperFailed to compile
+==== SOURCE BEGIN ====
+__attribute__((used)) extern "C" void __dtor_507(void* obj, unsigned long nary, int withFree)
+{
+   if (withFree) {
+      if (!nary) {
+         delete (std::vector<int, std::allocator<int>>*) obj;
+      }
+      else {
+         delete[] (std::vector<int, std::allocator<int>>*) obj;
+      }
+   }
+   else {
+      typedef std::vector<int, std::allocator<int>> Nm;
+if (!nary) {
+         ((Nm*)obj)->~Nm();
+      }
+      else {
+         do {
+            (((Nm*)obj)+(--nary))->~Nm();
+         } while (nary);
+      }
+   }
+}
+
+  ==== SOURCE END ====JIT session error: Failed to materialize symbols: { (main, { _ZNSt12_Vector_baseI12just_a_classSaIS0_EE19_M_get_Tp_allocatorEv }) }
+make_dtor_wrapperFailed to compile
+==== SOURCE BEGIN ====
+__attribute__((used)) extern "C" void __dtor_508(void* obj, unsigned long nary, int withFree)
+{
+   if (withFree) {
+      if (!nary) {
+         delete (std::vector<just_a_class, std::allocator<just_a_class>>*) obj;
+      }
+      else {
+         delete[] (std::vector<just_a_class, std::allocator<just_a_class>>*) obj;
+      }
+   }
+   else {
+      typedef std::vector<just_a_class, std::allocator<just_a_class>> Nm;
+if (!nary) {
+         ((Nm*)obj)->~Nm();
+      }
+      else {
+         do {
+            (((Nm*)obj)+(--nary))->~Nm();
+         } while (nary);
+      }
+   }
+}
+
+  ==== SOURCE END ====JIT session error: Failed to materialize symbols: { (main, { _ZNSt6vectorIiSaIiEED2Ev }) }
+make_dtor_wrapperFailed to compile
+==== SOURCE BEGIN ====
+__attribute__((used)) extern "C" void __dtor_509(void* obj, unsigned long nary, int withFree)
+{
+   if (withFree) {
+      if (!nary) {
+         delete (std::vector<int, std::allocator<int>>*) obj;
+      }
+      else {
+         delete[] (std::vector<int, std::allocator<int>>*) obj;
+      }
+   }
+   else {
+      typedef std::vector<int, std::allocator<int>> Nm;
+if (!nary) {
+         ((Nm*)obj)->~Nm();
+      }
+      else {
+         do {
+            (((Nm*)obj)+(--nary))->~Nm();
+         } while (nary);
+      }
+   }
+}
+
+  ==== SOURCE END ====JIT session error: Failed to materialize symbols: { (main, { _ZNSt6vectorIiSaIiEED2Ev }) }
+make_dtor_wrapperFailed to compile
+==== SOURCE BEGIN ====
+__attribute__((used)) extern "C" void __dtor_510(void* obj, unsigned long nary, int withFree)
+{
+   if (withFree) {
+      if (!nary) {
+         delete (std::vector<int, std::allocator<int>>*) obj;
+      }
+      else {
+         delete[] (std::vector<int, std::allocator<int>>*) obj;
+      }
+   }
+   else {
+      typedef std::vector<int, std::allocator<int>> Nm;
+if (!nary) {
+         ((Nm*)obj)->~Nm();
+      }
+      else {
+         do {
+            (((Nm*)obj)+(--nary))->~Nm();
+         } while (nary);
+      }
+   }
+}
+
+  ==== SOURCE END ====JIT session error: Failed to materialize symbols: { (main, { _ZNSt6vectorIiSaIiEED2Ev }) }
+make_dtor_wrapperFailed to compile
+==== SOURCE BEGIN ====
+__attribute__((used)) extern "C" void __dtor_511(void* obj, unsigned long nary, int withFree)
+{
+   if (withFree) {
+      if (!nary) {
+         delete (std::vector<int, std::allocator<int>>*) obj;
+      }
+      else {
+         delete[] (std::vector<int, std::allocator<int>>*) obj;
+      }
+   }
+   else {
+      typedef std::vector<int, std::allocator<int>> Nm;
+if (!nary) {
+         ((Nm*)obj)->~Nm();
+      }
+      else {
+         do {
+            (((Nm*)obj)+(--nary))->~Nm();
+         } while (nary);
+      }
+   }
+}
+
+  ==== SOURCE END ====JIT session error: Failed to materialize symbols: { (main, { _ZNSt12_Vector_baseI11VecTestEnumSaIS0_EE19_M_get_Tp_allocatorEv }) }
+make_dtor_wrapperFailed to compile
+==== SOURCE BEGIN ====
+__attribute__((used)) extern "C" void __dtor_512(void* obj, unsigned long nary, int withFree)
+{
+   if (withFree) {
+      if (!nary) {
+         delete (std::vector<VecTestEnum, std::allocator<VecTestEnum>>*) obj;
+      }
+      else {
+         delete[] (std::vector<VecTestEnum, std::allocator<VecTestEnum>>*) obj;
+      }
+   }
+   else {
+      typedef std::vector<VecTestEnum, std::allocator<VecTestEnum>> Nm;
+if (!nary) {
+         ((Nm*)obj)->~Nm();
+      }
+      else {
+         do {
+            (((Nm*)obj)+(--nary))->~Nm();
+         } while (nary);
+      }
+   }
+}
+
+  ==== SOURCE END ====JIT session error: Failed to materialize symbols: { (main, { _ZNSt6vectorIiSaIiEED2Ev }) }
+make_dtor_wrapperFailed to compile
+==== SOURCE BEGIN ====
+__attribute__((used)) extern "C" void __dtor_513(void* obj, unsigned long nary, int withFree)
+{
+   if (withFree) {
+      if (!nary) {
+         delete (std::vector<int, std::allocator<int>>*) obj;
+      }
+      else {
+         delete[] (std::vector<int, std::allocator<int>>*) obj;
+      }
+   }
+   else {
+      typedef std::vector<int, std::allocator<int>> Nm;
+if (!nary) {
+         ((Nm*)obj)->~Nm();
+      }
+      else {
+         do {
+            (((Nm*)obj)+(--nary))->~Nm();
+         } while (nary);
+      }
+   }
+}
+
+  ==== SOURCE END ====FFF

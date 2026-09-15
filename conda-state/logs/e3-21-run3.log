@@ -1,0 +1,28 @@
+...................................................FFF.....FFFFJIT session error: Failed to materialize symbols: { (main, { _ZNSt12_Vector_baseIiSaIiEE19_M_get_Tp_allocatorEv }) }
+make_dtor_wrapperFailed to compile
+==== SOURCE BEGIN ====
+__attribute__((used)) extern "C" void __dtor_450(void* obj, unsigned long nary, int withFree)
+{
+   if (withFree) {
+      if (!nary) {
+         delete (std::vector<int, std::allocator<int>>*) obj;
+      }
+      else {
+         delete[] (std::vector<int, std::allocator<int>>*) obj;
+      }
+   }
+   else {
+      typedef std::vector<int, std::allocator<int>> Nm;
+if (!nary) {
+         ((Nm*)obj)->~Nm();
+      }
+      else {
+         do {
+            (((Nm*)obj)+(--nary))->~Nm();
+         } while (nary);
+      }
+   }
+}
+
+  ==== SOURCE END ====F.FFFFFFF [ 29%]
+FFFF

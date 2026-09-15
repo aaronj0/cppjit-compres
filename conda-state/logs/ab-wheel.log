@@ -1,0 +1,196 @@
++ docker run --rm -v /home/maximus/cppjit-conda:/cf -w /tmp docker.io/condaforge/miniforge3:latest bash -lc '
+  set -e
+  conda create -y -p /tmp/w -c conda-forge "python=3.13" pip pytest numpy make cxx-compiler
+  conda run -p /tmp/w pip install --pre cppjit==0.1.0a1
+  echo "=== wheel smoke ==="
+  conda run -p /tmp/w python /cf/recipes/cppjit/smoke.py
+  tar xzf /cf/src/cppjit-0.1.0a1.tar.gz -C /tmp
+  cd /tmp/cppjit-0.1.0a1/test
+  eval "$(conda shell.bash activate /tmp/w)"
+  make -j"$(nproc)" PYTHON=python >/dev/null 2>&1 || echo "fixture make rc=$?"
+  echo "=== wheel test_api ==="
+  python -m pytest -q -p no:cacheprovider test_api.py 2>&1 | tail -5
+  echo "=== wheel test_stltypes ==="
+  python -m pytest -q -p no:cacheprovider test_stltypes.py 2>&1 | tail -3
+'
+Retrieving notices: ...working... done
+Channels:
+ - conda-forge
+Platform: linux-64
+Collecting package metadata (repodata.json): ...working... done
+Solving environment: ...working... done
+
+## Package Plan ##
+
+  environment location: /tmp/w
+
+  added / updated specs:
+    - cxx-compiler
+    - make
+    - numpy
+    - pip
+    - pytest
+    - python=3.13
+
+
+The following packages will be downloaded:
+
+    package                    |            build
+    ---------------------------|-----------------
+    _openmp_mutex-4.5          |           20_gnu          28 KB  conda-forge
+    binutils_impl_linux-64-2.46.1|default_hfdba357_102         3.5 MB  conda-forge
+    bzip2-1.0.8                |      hda65f42_10         252 KB  conda-forge
+    ca-certificates-2026.7.22  |       hbd8a1cb_0         129 KB  conda-forge
+    colorama-0.4.6             |     pyhd8ed1ab_1          26 KB  conda-forge
+    conda-gcc-specs-15.3.0     |       h8846f6e_4          32 KB  conda-forge
+    cxx-compiler-2.0.0         |       hdab9b82_0           7 KB  conda-forge
+    exceptiongroup-1.3.1       |     pyhd8ed1ab_0          21 KB  conda-forge
+    gcc-15.3.0                 |       hc6a0c74_4          29 KB  conda-forge
+    gcc_impl_linux-64-15.3.0   |       h6f13dc8_4        79.0 MB  conda-forge
+    gxx-15.3.0                 |       hc6a0c74_4          28 KB  conda-forge
+    gxx_impl_linux-64-15.3.0   |       h90d9265_4        15.5 MB  conda-forge
+    icu-78.3                   |  py310h44b86e0_2        13.8 MB  conda-forge
+    iniconfig-2.3.0            |     pyhd8ed1ab_0          13 KB  conda-forge
+    kernel-headers_linux-64-6.12.0|       he073ed8_6         1.5 MB  conda-forge
+    ld_impl_linux-64-2.46.1    |default_hbd61a6d_102         728 KB  conda-forge
+    libblas-3.11.0             |11_h4a7cf45_openblas          18 KB  conda-forge
+    libcblas-3.11.0            |11_h0358290_openblas          18 KB  conda-forge
+    libexpat-2.8.1             |       hecca717_1          76 KB  conda-forge
+    libffi-3.7.0               |       h81df57d_1          66 KB  conda-forge
+    libgcc-16.2.0              |       ha9f2e26_4         1.0 MB  conda-forge
+    libgcc-devel_linux-64-15.3.0|     h2b852eb_104         3.0 MB  conda-forge
+    libgfortran-16.2.0         |       h69a702a_4          28 KB  conda-forge
+    libgfortran5-16.2.0        |       h6b99dfc_4         2.4 MB  conda-forge
+    libgomp-16.2.0             |       he0feb66_4         625 KB  conda-forge
+    liblapack-3.11.0           |11_h47877c9_openblas          18 KB  conda-forge
+    liblzma-5.8.3              |       hb03c661_1         110 KB  conda-forge
+    libmpdec-4.0.0             |       hb03c661_2          91 KB  conda-forge
+    libopenblas-0.3.34         |pthreads_hf13c14d_2         6.5 MB  conda-forge
+    libpython-3.13.15          |hdc7f604_103_cp313         9.3 MB  conda-forge
+    libsanitizer-15.3.0        |       h54950a5_4         7.2 MB  conda-forge
+    libsqlite-3.53.4           |       h13e7031_1         952 KB  conda-forge
+    libstdcxx-16.2.0           |       h934c35e_4         6.3 MB  conda-forge
+    libstdcxx-devel_linux-64-15.3.0|     hb2c5482_104        19.7 MB  conda-forge
+    libuuid-2.42.3             |       hcfc3c73_0          39 KB  conda-forge
+    libzlib-1.3.2              |       h25fd6f3_3          62 KB  conda-forge
+    make-4.4.1                 |       hb03c661_3         499 KB  conda-forge
+    ncurses-6.6                |       hdb14827_1         890 KB  conda-forge
+    numpy-2.5.3                |  py313hb5f73ae_0         8.9 MB  conda-forge
+    openssl-3.6.4              |       h781a0a9_0         3.1 MB  conda-forge
+    packaging-26.3             |     pyhc364b38_0         114 KB  conda-forge
+    pip-26.2.1                 |     pyh145f28c_0         1.1 MB  conda-forge
+    pluggy-1.6.0               |     pyhf9edf01_1          25 KB  conda-forge
+    pygments-2.21.0            |     pyhcf101f3_0         937 KB  conda-forge
+    pytest-9.1.1               |     pyhc364b38_2         300 KB  conda-forge
+    python-3.13.15             |hf47f18c_103_cp313        23.2 MB  conda-forge
+    python_abi-3.13            |          9_cp313           7 KB  conda-forge
+    readline-8.3               |       hd6e31c0_1         341 KB  conda-forge
+    sysroot_linux-64-2.39      |       hc4b9eeb_6        40.1 MB  conda-forge
+    tk-8.6.13                  | noxft_h1df4ec4_4         3.4 MB  conda-forge
+    tomli-2.4.1                |     pyhcf101f3_0          21 KB  conda-forge
+    typing_extensions-4.16.0   |     pyhcf101f3_0          51 KB  conda-forge
+    tzdata-2026c               |       h151e31d_0         116 KB  conda-forge
+    zstd-1.5.7                 |       hb78ec9c_7         587 KB  conda-forge
+    ------------------------------------------------------------
+                                           Total:       255.7 MB
+
+The following NEW packages will be INSTALLED:
+
+  _openmp_mutex      conda-forge/linux-64::_openmp_mutex-4.5-20_gnu 
+  binutils_impl_lin~ conda-forge/linux-64::binutils_impl_linux-64-2.46.1-default_hfdba357_102 
+  bzip2              conda-forge/linux-64::bzip2-1.0.8-hda65f42_10 
+  ca-certificates    conda-forge/noarch::ca-certificates-2026.7.22-hbd8a1cb_0 
+  colorama           conda-forge/noarch::colorama-0.4.6-pyhd8ed1ab_1 
+  conda-gcc-specs    conda-forge/linux-64::conda-gcc-specs-15.3.0-h8846f6e_4 
+  cxx-compiler       conda-forge/linux-64::cxx-compiler-2.0.0-hdab9b82_0 
+  exceptiongroup     conda-forge/noarch::exceptiongroup-1.3.1-pyhd8ed1ab_0 
+  gcc                conda-forge/linux-64::gcc-15.3.0-hc6a0c74_4 
+  gcc_impl_linux-64  conda-forge/linux-64::gcc_impl_linux-64-15.3.0-h6f13dc8_4 
+  gxx                conda-forge/linux-64::gxx-15.3.0-hc6a0c74_4 
+  gxx_impl_linux-64  conda-forge/linux-64::gxx_impl_linux-64-15.3.0-h90d9265_4 
+  icu                conda-forge/linux-64::icu-78.3-py310h44b86e0_2 
+  iniconfig          conda-forge/noarch::iniconfig-2.3.0-pyhd8ed1ab_0 
+  kernel-headers_li~ conda-forge/noarch::kernel-headers_linux-64-6.12.0-he073ed8_6 
+  ld_impl_linux-64   conda-forge/linux-64::ld_impl_linux-64-2.46.1-default_hbd61a6d_102 
+  libblas            conda-forge/linux-64::libblas-3.11.0-11_h4a7cf45_openblas 
+  libcblas           conda-forge/linux-64::libcblas-3.11.0-11_h0358290_openblas 
+  libexpat           conda-forge/linux-64::libexpat-2.8.1-hecca717_1 
+  libffi             conda-forge/linux-64::libffi-3.7.0-h81df57d_1 
+  libgcc             conda-forge/linux-64::libgcc-16.2.0-ha9f2e26_4 
+  libgcc-devel_linu~ conda-forge/noarch::libgcc-devel_linux-64-15.3.0-h2b852eb_104 
+  libgfortran        conda-forge/linux-64::libgfortran-16.2.0-h69a702a_4 
+  libgfortran5       conda-forge/linux-64::libgfortran5-16.2.0-h6b99dfc_4 
+  libgomp            conda-forge/linux-64::libgomp-16.2.0-he0feb66_4 
+  liblapack          conda-forge/linux-64::liblapack-3.11.0-11_h47877c9_openblas 
+  liblzma            conda-forge/linux-64::liblzma-5.8.3-hb03c661_1 
+  libmpdec           conda-forge/linux-64::libmpdec-4.0.0-hb03c661_2 
+  libopenblas        conda-forge/linux-64::libopenblas-0.3.34-pthreads_hf13c14d_2 
+  libpython          conda-forge/linux-64::libpython-3.13.15-hdc7f604_103_cp313 
+  libsanitizer       conda-forge/linux-64::libsanitizer-15.3.0-h54950a5_4 
+  libsqlite          conda-forge/linux-64::libsqlite-3.53.4-h13e7031_1 
+  libstdcxx          conda-forge/linux-64::libstdcxx-16.2.0-h934c35e_4 
+  libstdcxx-devel_l~ conda-forge/noarch::libstdcxx-devel_linux-64-15.3.0-hb2c5482_104 
+  libuuid            conda-forge/linux-64::libuuid-2.42.3-hcfc3c73_0 
+  libzlib            conda-forge/linux-64::libzlib-1.3.2-h25fd6f3_3 
+  make               conda-forge/linux-64::make-4.4.1-hb03c661_3 
+  ncurses            conda-forge/linux-64::ncurses-6.6-hdb14827_1 
+  numpy              conda-forge/linux-64::numpy-2.5.3-py313hb5f73ae_0 
+  openssl            conda-forge/linux-64::openssl-3.6.4-h781a0a9_0 
+  packaging          conda-forge/noarch::packaging-26.3-pyhc364b38_0 
+  pip                conda-forge/noarch::pip-26.2.1-pyh145f28c_0 
+  pluggy             conda-forge/noarch::pluggy-1.6.0-pyhf9edf01_1 
+  pygments           conda-forge/noarch::pygments-2.21.0-pyhcf101f3_0 
+  pytest             conda-forge/noarch::pytest-9.1.1-pyhc364b38_2 
+  python             conda-forge/linux-64::python-3.13.15-hf47f18c_103_cp313 
+  python_abi         conda-forge/noarch::python_abi-3.13-9_cp313 
+  readline           conda-forge/linux-64::readline-8.3-hd6e31c0_1 
+  sysroot_linux-64   conda-forge/noarch::sysroot_linux-64-2.39-hc4b9eeb_6 
+  tk                 conda-forge/linux-64::tk-8.6.13-noxft_h1df4ec4_4 
+  tomli              conda-forge/noarch::tomli-2.4.1-pyhcf101f3_0 
+  typing_extensions  conda-forge/noarch::typing_extensions-4.16.0-pyhcf101f3_0 
+  tzdata             conda-forge/noarch::tzdata-2026c-h151e31d_0 
+  zstd               conda-forge/linux-64::zstd-1.5.7-hb78ec9c_7 
+
+
+
+Downloading and Extracting Packages: ...working... done
+Preparing transaction: ...working... done
+Verifying transaction: ...working... done
+Executing transaction: ...working... done
+WARNING conda.conda_pypi.main:notify_externally_managed_future(156): 
+  Did you know? You can install many PyPI packages with conda
+  using the conda-pypi beta. Get started:
+    https://docs.conda.io/projects/conda/en/stable/new-features.html
+
+#
+# To activate this environment, use
+#
+#     $ conda activate /tmp/w
+#
+# To deactivate an active environment, use
+#
+#     $ conda deactivate
+
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+Collecting cppjit==0.1.0a1
+  Downloading cppjit-0.1.0a1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (9.8 kB)
+Downloading cppjit-0.1.0a1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (51.8 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 51.8/51.8 MB 9.3 MB/s  0:00:05
+Installing collected packages: cppjit
+Successfully installed cppjit-0.1.0a1
+=== wheel smoke ===
+In file included from <<< inputs >>>:1:
+input_line_3:1:10: fatal error: 'algorithm' file not found
+    1 | #include <algorithm>
+      |          ^~~~~~~~~~~
+Failed to parse via ::process:Parsing failed.
+Traceback (most recent call last):
+  File "/cf/recipes/cppjit/smoke.py", line 4, in <module>
+    import cppjit
+  File "/tmp/w/lib/python3.13/site-packages/cppjit/__init__.py", line 74, in <module>
+    from ._cpython_cppjit import *
+  File "/tmp/w/lib/python3.13/site-packages/cppjit/_cpython_cppjit.py", line 143, in <module>
+    gbl.std = _backend.CreateScopeProxy("std")
+              ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+TypeError: 'std' is not a known C++ class
+ERROR conda.cli.main_run:execute(148): `conda run python /cf/recipes/cppjit/smoke.py` failed. (See above for error)

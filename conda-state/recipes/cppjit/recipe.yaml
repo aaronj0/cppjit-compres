@@ -1,0 +1,94 @@
+# cppjit 0.1.0a1 requires a CppInterOp snapshot newer than the conda-forge
+# cppinterop release, so the pinned snapshot is vendored and built in-tree
+# (CPPINTEROP_SOURCE_DIR); switch host/run to the cppinterop package at the
+# first compatible CppInterOp release.
+context:
+  version: 0.1.0a1
+  # must match the LLVM major the vendored CppInterOp pin supports (20-22)
+  clang_major: 21
+
+package:
+  name: cppjit
+  version: ${{ version }}
+
+source:
+  - url: https://pypi.org/packages/source/c/cppjit/cppjit-${{ version }}.tar.gz
+    sha256: ebda4a4574e1a93e5c30ab7a49365c411fd2580716d5a73aac5de0de1c127bf0
+  - url: https://github.com/compiler-research/CppInterOp/archive/9802d61921ad5688ae42e4e628d754fc1192244d.tar.gz
+    sha256: 3a8d79bdf9f23b264c15667f9739b6d2ffd455ce655a6e4748c7042e639752bb
+    target_directory: cppinterop-src
+
+build:
+  number: 0
+  skip:
+    - win
+    - match(python, "<3.12")
+  script:
+    # BFD ld corrupts GOTPCRELX relocations against conda LLVM; link with lld.
+    - export LDFLAGS="$LDFLAGS -fuse-ld=lld"
+    # the build env exports CMAKE_GENERATOR="Unix Makefiles" but carries ninja
+    - export CMAKE_GENERATOR=Ninja
+    - >-
+      python -m pip install . -vv --no-deps --no-build-isolation
+      -Ccmake.define.CPPINTEROP_SOURCE_DIR=$SRC_DIR/cppinterop-src
+      -Ccmake.define.LLVM_DIR=$PREFIX/lib/cmake/llvm
+      -Ccmake.define.Clang_DIR=$PREFIX/lib/cmake/clang
+
+requirements:
+  build:
+    - ${{ compiler('cxx') }}
+    - ${{ stdlib('c') }}
+    - cmake
+    - ninja
+    - lld
+    - if: build_platform != target_platform
+      then:
+        - python
+        - cross-python_${{ target_platform }}
+  host:
+    - python
+    - pip
+    - scikit-build-core >=1.0
+    - llvmdev ${{ clang_major }}.*
+    - clangdev ${{ clang_major }}.*
+    # LLVM's exported targets link these; run pins arrive via run_exports
+    - zlib
+    - libxml2
+    - zstd
+  run:
+    - python
+    # the JIT resolves C++ standard headers from the environment at runtime
+    - if: linux
+      then: cxx-compiler
+    - if: osx
+      then: libcxx-devel
+
+tests:
+  - python:
+      imports:
+        - cppjit
+      pip_check: true
+  - script:
+      - python smoke.py
+    files:
+      recipe:
+        - smoke.py
+
+about:
+  summary: Automatic Python-C++ runtime bindings through a JIT compiler
+  description: |
+    cppjit generates Python bindings for C++ at runtime by JIT-compiling
+    C++ with CppInterOp and the clang-repl incremental compiler in LLVM.
+    It is the successor of cppyy, rebuilt on stock LLVM releases.
+  license: BSD-3-Clause-LBNL AND Apache-2.0 WITH LLVM-exception
+  license_file:
+    - LICENSE.txt
+    - cppinterop-src/LICENSE.txt
+  homepage: https://github.com/compiler-research/cppjit
+  repository: https://github.com/compiler-research/cppjit
+  documentation: https://github.com/compiler-research/cppjit#readme
+
+extra:
+  recipe-maintainers:
+    - aaronj0
+    - vgvassilev
