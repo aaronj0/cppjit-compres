@@ -168,6 +168,24 @@ pip install -v . --config-settings=cmake.define.LLVM_DIR="$(brew --prefix llvm@2
 
 </details>
 
+<details>
+<summary><b>conda (Linux)</b></summary>
+
+The toolchain comes from conda-forge. conda's LLVM requires linking
+with lld: the default linker corrupts its relocations, which surfaces
+as a crash on the first JIT call.
+
+```bash
+conda create -n cppjit-dev -c conda-forge python cxx-compiler cmake ninja lld \
+    'llvmdev=21' 'clangdev=21' zlib libxml2 zstd
+conda activate cppjit-dev
+git clone https://github.com/compiler-research/cppjit.git && cd cppjit
+LDFLAGS="-fuse-ld=lld" pip install -v . \
+    --config-settings=cmake.define.LLVM_DIR=$CONDA_PREFIX/lib/cmake/llvm
+```
+
+</details>
+
 ### Development build (pip editable)
 
 With the toolchain from the source installation above, an editable
