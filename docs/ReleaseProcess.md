@@ -1,8 +1,9 @@
 # Release Process
 
 A cppjit release is a git tag on main. The tag push builds the wheels,
-and the PyPI workflow uploads what that build produced. Future releases
-will extend this to more distribution channels like conda.
+and the PyPI workflow uploads what that build produced. The conda-forge
+feedstock republishes each release from the PyPI sdist (see
+"conda-forge" below).
 
 ## Procedure
 
@@ -59,6 +60,26 @@ The notes of a released version live on in its GitHub release.
 PyPI shows no release notes. It renders the README that was built
 into each version, and the `Changelog` URL in `[project.urls]` leads
 from there to the GitHub releases page.
+
+## conda-forge
+
+The cppjit feedstock builds the PyPI sdist against conda-forge's LLVM
+and vendors CppInterOp as a second pinned source at the sdist's
+`CPPINTEROP_GIT_TAG`, until a CppInterOp release contains that commit;
+then the feedstock switches to the conda-forge `cppinterop` package.
+
+After a release reaches PyPI, the autotick-bot opens a version PR on
+the feedstock. Review it for three pins before merging:
+
+- the new sdist sha256 (bot-supplied),
+- the vendored CppInterOp source URL and sha256 matching the release's
+  `CPPINTEROP_GIT_TAG`,
+- the `clang_major` context value staying inside the release's
+  supported LLVM window.
+
+While cppjit has no stable release, prereleases publish on the main
+label. After the first stable release, prereleases move to the `dev`
+label through a `dev` branch on the feedstock.
 
 ## The PyPI workflow
 
