@@ -20,23 +20,23 @@ jobs:
     name: ${{ matrix.os }}/llvm${{ matrix.llvm }}/py${{ matrix.py }}/c++${{ matrix.cxx }}${{ matrix.vg && '/vg' || '' }}${{ matrix.flavor == 'cling' && '/cling' || '' }}
     strategy:
       fail-fast: false
-      # Every supported Python against both supported LLVM majors on ubuntu;
-      # every supported Python on macOS, alternating the LLVM major; a C++23
-      # cell (test_cpp23features runs only there) and a cling cell. Remaining
-      # breadth (C++17, LLVM 20, arm) lives in nightly.
+      # LLVM 22 is the primary target: every supported Python on ubuntu and
+      # macOS, a C++23 cell (test_cpp23features runs only there), a valgrind
+      # cell, and a cling cell. Linux uses the llvm-release recipe (apt-llvm.org
+      # can't supply the >=22 OOP-JIT runtime for flavor=system); macOS uses
+      # brew llvm@22. When CppInterOp supports LLVM 23 these cells move to 23.
+      # Remaining breadth (C++17, LLVM 20, arm) lives in nightly.
       matrix:
         include:
-          - { os: ubuntu-24.04,   llvm: '21', flavor: system, py: '3.14', cxx: '20', vg: true }
-          - { os: ubuntu-24.04,   llvm: '21', flavor: system, py: '3.13', cxx: '20' }
-          - { os: ubuntu-24.04,   llvm: '21', flavor: system, py: '3.12', cxx: '20' }
+          - { os: ubuntu-24.04,   llvm: '22', flavor: '',     py: '3.14', cxx: '20', vg: true }
           - { os: ubuntu-24.04,   llvm: '22', flavor: '',     py: '3.14', cxx: '20' }
           - { os: ubuntu-24.04,   llvm: '22', flavor: '',     py: '3.14', cxx: '23' }
           - { os: ubuntu-24.04,   llvm: '22', flavor: '',     py: '3.13', cxx: '20' }
           - { os: ubuntu-24.04,   llvm: '22', flavor: '',     py: '3.12', cxx: '20' }
-          - { os: macos-26,       llvm: '21', flavor: system, py: '3.14', cxx: '20' }
+          - { os: macos-26,       llvm: '22', flavor: system, py: '3.14', cxx: '20' }
           - { os: macos-26,       llvm: '22', flavor: '',     py: '3.13', cxx: '20' }
-          - { os: macos-26,       llvm: '21', flavor: system, py: '3.12', cxx: '20' }
-          - { os: macos-26-intel, llvm: '21', flavor: system, py: '3.14', cxx: '20' }
+          - { os: macos-26,       llvm: '22', flavor: system, py: '3.12', cxx: '20' }
+          - { os: macos-26-intel, llvm: '22', flavor: system, py: '3.14', cxx: '20' }
           - { os: macos-26-intel, llvm: '22', flavor: '',     py: '3.12', cxx: '20' }
           # cling backend, against the cached llvm-root (cling-llvm22) recipe cell.
           - { os: ubuntu-24.04,   llvm: '22', flavor: cling,  flavor_version: cling-llvm22, py: '3.14', cxx: '20' }
