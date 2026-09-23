@@ -28,7 +28,10 @@ This release supports Python 3.12-3.14 and LLVM 21-22.
 
 ## Other changes
 
-- ...
+- `import cppjit` fails with an actionable `RuntimeError` when the C++
+  standard headers do not parse, for example on a host without a C++
+  toolchain. The failure used to surface later as
+  `TypeError: 'std' is not a known C++ class`.
 
 ## Contributors
 

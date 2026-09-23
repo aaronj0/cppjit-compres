@@ -184,7 +184,13 @@ static void configureInterpreter(const InterOpPaths& Paths) {
   Cpp::LoadLibrary("libstdc++", /* lookup= */ true);
 }
 
-static void preloadHeaders() {
+// Returns false when the standard headers do not parse. Nothing works
+// without them, so the caller reports the failure instead of letting it
+// resurface later as a missing `std` namespace.
+// TODO: after the CppInterOp pin bump, switch to Cpp::TryProcess and keep
+// its formatted diagnostics for LoadCppInterOpError(), so the Python-side
+// RuntimeError names the missing header itself.
+static bool preloadHeaders() {
   const char* code = "#include <algorithm>\n"
                      "#include <numeric>\n"
                      "#include <complex>\n"
@@ -209,7 +215,7 @@ static void preloadHeaders() {
                      "#include <optional>\n"
                      "#endif\n"
                      "#include <CppInterOp/Dispatch.h>\n";
-  Cpp::Process(code);
+  return Cpp::Process(code) == 0;
 }
 
 static void defineRuntimeHelpers() {
@@ -246,9 +252,19 @@ extern "C" int LoadCppInterOp() {
     if (!loadDispatchAPI(Paths))
       return;
 
-    acquireOrCreateInterpreter(Paths);
+    if (!acquireOrCreateInterpreter(Paths)) {
+      std::cerr << "[cppjit] Failed to create the C++ interpreter" << std::endl;
+      return;
+    }
     configureInterpreter(Paths);
-    preloadHeaders();
+    if (!preloadHeaders()) {
+      std::cerr << "[cppjit] Could not parse the C++ standard headers. The "
+                   "diagnostic above names the missing header. Install a C++ "
+                   "toolchain, for example g++ or the conda package "
+                   "cxx-compiler."
+                << std::endl;
+      return;
+    }
     defineRuntimeHelpers();
 
     Loaded = 1;
