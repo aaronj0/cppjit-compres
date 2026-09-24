@@ -2652,6 +2652,36 @@ class TestDATATYPES:
         pteui8p2 = ns52.Teui8.P2
         assert pteui8p2 == ns52.Teui8.P2
 
+    def test52a_fixed_width_integers(self):
+        """int16/uint16/int32/uint32 members and arrays round-trip"""
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        #include <cstdint>
+        struct FixedWidths {
+            int16_t  i16 = -12345;
+            uint16_t u16 = 54321;
+            int32_t  i32 = -1234567890;
+            uint32_t u32 = 3234567890u;
+            int16_t  a16[3] = {-1, 0, 1};
+            uint32_t a32[3] = {1u, 2u, 4294967295u};
+        };""")
+
+        o = cppjit.gbl.FixedWidths()
+        assert o.i16 == -12345
+        assert o.u16 == 54321
+        assert o.i32 == -1234567890
+        assert o.u32 == 3234567890
+        o.i16 = -32768
+        o.u16 = 65535
+        assert o.i16 == -32768
+        assert o.u16 == 65535
+        assert list(o.a16) == [-1, 0, 1]
+        assert list(o.a32) == [1, 2, 4294967295]
+        o.a16[1] = 7
+        assert o.a16[1] == 7
+
     def test53_basic_nanoseconds_goodness(self):
         import cppjit
 
