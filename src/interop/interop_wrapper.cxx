@@ -8,6 +8,7 @@
 #include "precommondefs.h" // This defines several system feature macros and should be included before any system header.
 
 // Bindings
+#include "StderrCapture.h"
 #include "cppjit_interop.h"
 
 using namespace cppjit;
@@ -24,6 +25,7 @@ static inline size_t CALL_NARGS(size_t nargs) { return nargs & ~DIRECT_CALL; }
 // Standard
 #include <algorithm> // for std::count, std::remove
 #include <cassert>
+#include <cctype>
 #include <csignal>
 #include <cstdlib> // for getenv
 #include <cstring>
@@ -37,6 +39,7 @@ static inline size_t CALL_NARGS(size_t nargs) { return nargs & ~DIRECT_CALL; }
 #include <sstream>
 #include <stdexcept>
 #include <typeinfo>
+#include <unordered_set>
 #include <vector>
 
 std::recursive_mutex InterOpMutex;
@@ -879,49 +882,116 @@ static inline void release_args(Parameter* args, size_t nargs) {
   }
 }
 
+// call failure record --------------------------------------------------------
+namespace {
+
+struct CallFailure {
+  interop::ECallFailure kind = interop::kCallCompleted;
+  std::string report;
+};
+
+// The outcome of the most recent call on this thread. A call records its
+// outcome after the wrapper returns, so calls made from a callback inside
+// it cannot overwrite the record its caller reads.
+thread_local CallFailure gCallFailure;
+
+// methods whose call wrapper compiled once, guarded by InterOpMutex
+std::unordered_set<void*> gCompiledWrappers;
+
+// Rewrites the mangled names in a JIT report to their C++ spelling and
+// drops the trailing newlines.
+std::string demangle_report(const std::string& text) {
+  auto is_name_char = [](char c) {
+    return std::isalnum((unsigned char)c) || c == '_' || c == '.' || c == '$';
+  };
+  std::string out;
+  size_t pos = 0;
+  for (size_t start = text.find("_Z"); start != std::string::npos;
+       start = text.find("_Z", pos)) {
+    size_t end = start + 2;
+    while (end < text.size() && is_name_char(text[end]))
+      ++end;
+    out.append(text, pos, start - pos);
+    std::string token = text.substr(start, end - start);
+    bool own_word = start == 0 || !is_name_char(text[start - 1]);
+    std::string demangled = own_word ? Cpp::Demangle(token) : std::string{};
+    out += demangled.empty() ? token : demangled;
+    pos = end;
+  }
+  out.append(text, pos, std::string::npos);
+  while (!out.empty() && out.back() == '\n')
+    out.pop_back();
+  return out;
+}
+
+// Compiles the call wrapper on a method's first call. The JIT reports a
+// failure on the standard error descriptor only, so that first attempt
+// runs under a capture and `report` receives the text. The caller holds
+// InterOpMutex.
+Cpp::JitCall make_callable(interop::TCppMethod_t method, std::string& report) {
+  if (gCompiledWrappers.count(method.data))
+    return Cpp::MakeFunctionCallable(method);
+  interop::StderrCapture capture;
+  Cpp::JitCall JC = Cpp::MakeFunctionCallable(method);
+  report = capture.Stop();
+  if (JC)
+    gCompiledWrappers.insert(method.data);
+  return JC;
+}
+
+} // unnamed namespace
+
+interop::ECallFailure interop::LastCallFailure() { return gCallFailure.kind; }
+
+std::string interop::LastCallFailureReport() { return gCallFailure.report; }
+
 static inline bool WrapperCall(interop::TCppMethod_t method, size_t nargs,
                                void* args_, void* self, void* result) {
   Parameter* args = (Parameter*)args_;
   // bool is_direct = nargs & DIRECT_CALL;
   nargs = CALL_NARGS(nargs);
 
-  // if (!is_ready(wrap, is_direct))
-  //     return false;        // happens with compilation error
+  std::string report;
   InterOpMutex.lock();
-  if (Cpp::JitCall JC = Cpp::MakeFunctionCallable(method)) {
-    InterOpMutex.unlock();
-    bool runRelease = false;
-    // const auto& fgen = /* is_direct ? faceptr.fDirect : */ faceptr;
-    if (nargs <= cpyrt::SMALL_ARGS_N) {
-      void* smallbuf[cpyrt::SMALL_ARGS_N];
-      if (nargs)
-        runRelease = copy_args(args, nargs, smallbuf);
-      // CLING_CATCH_UNCAUGHT_
-      JC.Invoke(result, {smallbuf, nargs}, self);
-      // _CLING_CATCH_UNCAUGHT
-    } else {
-      std::vector<void*> buf(nargs);
-      runRelease = copy_args(args, nargs, buf.data());
-      // CLING_CATCH_UNCAUGHT_
-      JC.Invoke(result, {buf.data(), nargs}, self);
-      // _CLING_CATCH_UNCAUGHT
-    }
-    if (runRelease)
-      release_args(args, nargs);
-    return true;
-  }
+  Cpp::JitCall JC = make_callable(method, report);
   InterOpMutex.unlock();
-  return false;
+  if (!JC) {
+    gCallFailure = {interop::kWrapperJitFailed, demangle_report(report)};
+    return false;
+  }
+  // the text of a wrapper that did compile, such as a warning, stays visible
+  if (!report.empty())
+    std::cerr << report;
+
+  bool runRelease = false;
+  // const auto& fgen = /* is_direct ? faceptr.fDirect : */ faceptr;
+  if (nargs <= cpyrt::SMALL_ARGS_N) {
+    void* smallbuf[cpyrt::SMALL_ARGS_N];
+    if (nargs)
+      runRelease = copy_args(args, nargs, smallbuf);
+    // CLING_CATCH_UNCAUGHT_
+    JC.Invoke(result, {smallbuf, nargs}, self);
+    // _CLING_CATCH_UNCAUGHT
+  } else {
+    std::vector<void*> buf(nargs);
+    runRelease = copy_args(args, nargs, buf.data());
+    // CLING_CATCH_UNCAUGHT_
+    JC.Invoke(result, {buf.data(), nargs}, self);
+    // _CLING_CATCH_UNCAUGHT
+  }
+  if (runRelease)
+    release_args(args, nargs);
+  gCallFailure = {};
+  return true;
 }
 
 template <typename T>
 static inline T CallT(interop::TCppMethod_t method, interop::TCppObject_t self,
                       size_t nargs, void* args) {
+  // a failed call leaves the value untouched and its reason in the record
   T t{};
-  if (WrapperCall(method, nargs, args, self.data, &t))
-    return t;
-  throw std::runtime_error("failed to resolve function");
-  return (T)-1;
+  WrapperCall(method, nargs, args, self.data, &t);
+  return t;
 }
 
 #ifdef PRINT_DEBUG
@@ -939,8 +1009,7 @@ static inline T CallT(interop::TCppMethod_t method, interop::TCppObject_t self,
 
 void interop::CallV(TCppMethod_t method, TCppObject_t self, size_t nargs,
                     void* args) {
-  if (!WrapperCall(method, nargs, args, self.data, nullptr))
-    return /* TODO ... report error */;
+  WrapperCall(method, nargs, args, self.data, nullptr);
 }
 
 // clang-format off
@@ -958,9 +1027,8 @@ CPPJIT_IMP_CALL(LD, long double  )
 void* interop::CallR(TCppMethod_t method, TCppObject_t self, size_t nargs,
                      void* args) {
   void* r = nullptr;
-  if (WrapperCall(method, nargs, args, self.data, &r))
-    return r;
-  return nullptr;
+  WrapperCall(method, nargs, args, self.data, &r);
+  return r;
 }
 
 char* interop::CallS(TCppMethod_t method, TCppObject_t self, size_t nargs,
@@ -996,8 +1064,10 @@ interop::TCppObject_t interop::CallO(TCppMethod_t method, TCppObject_t self,
                                      size_t nargs, void* args,
                                      TCppType_t result_type) {
   size_t size = interop::SizeOfType(result_type);
-  if (size == 0)
+  if (size == 0) {
+    gCallFailure = {interop::kUnsizableReturn, {}};
     return TCppObject_t{}; // unsizable return type; the caller reports
+  }
   void* obj = ::operator new(size);
   if (WrapperCall(method, nargs, args, self.data, obj))
     return (TCppObject_t)obj;

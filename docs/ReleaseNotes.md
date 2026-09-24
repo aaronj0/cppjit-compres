@@ -40,6 +40,11 @@ This release supports Python 3.12-3.14 and LLVM 21-22.
   carry the compiler's diagnostic text. The message used to end after
   the generic prefix because the capture read `std::cerr` while clang
   and the JIT write to the standard error descriptor.
+- A call whose JIT wrapper cannot be compiled, for example because the
+  loaded `libstdc++` lacks a symbol the function needs, raises a
+  `RuntimeError` carrying the JIT's report, whatever the return type.
+  A `std::string` result used to come back empty and a `void` call
+  returned silently.
 
 ## Contributors
 
