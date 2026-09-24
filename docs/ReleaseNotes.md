@@ -32,6 +32,10 @@ This release supports Python 3.12-3.14 and LLVM 21-22.
   standard headers do not parse, for example on a host without a C++
   toolchain. The failure used to surface later as
   `TypeError: 'std' is not a known C++ class`.
+- `libcppjit` no longer exports the standard-library symbols it links
+  statically from the build toolchain. A standard-library feature the
+  host `libstdc++` cannot provide, such as `std::filesystem` on a GCC 8
+  runtime, now fails with an error instead of crashing the process.
 
 ## Contributors
 
