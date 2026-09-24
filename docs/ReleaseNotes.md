@@ -36,6 +36,10 @@ This release supports Python 3.12-3.14 and LLVM 21-22.
   statically from the build toolchain. A standard-library feature the
   host `libstdc++` cannot provide, such as `std::filesystem` on a GCC 8
   runtime, now fails with an error instead of crashing the process.
+- `cppdef`, `cppexec`, `include`, `c_include` and `load_library` errors
+  carry the compiler's diagnostic text. The message used to end after
+  the generic prefix because the capture read `std::cerr` while clang
+  and the JIT write to the standard error descriptor.
 
 ## Contributors
 

@@ -1,4 +1,4 @@
-from pytest import mark, skip
+from pytest import mark, raises, skip
 from support import IS_LINUX_ARM, IS_MAC, ispypy
 
 
@@ -229,3 +229,17 @@ class TestAPI:
         assert Sequence_Check(tuple())
         assert Sequence_Check(cppjit.gbl.std.vector[ns.MyClass]())
         assert not Sequence_Check(cppjit.gbl.std.list[ns.MyClass]())
+
+
+class TestJITERRORS:
+    def test01_diagnostics_stay_out_of_stderr(self, capfd):
+        """A compile error's text lands in the exception, not on fd 2"""
+
+        import cppjit
+
+        with raises(SyntaxError) as e:
+            cppjit.cppdef("1aap = 42;")
+        assert "invalid digit" in str(e.value)
+
+        out, err = capfd.readouterr()
+        assert "invalid digit" not in err
