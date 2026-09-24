@@ -5,7 +5,7 @@
 [![Wheels](https://github.com/compiler-research/cppjit/actions/workflows/wheels.yml/badge.svg)](https://github.com/compiler-research/cppjit/actions/workflows/wheels.yml)
 [![PyPI](https://img.shields.io/pypi/v/cppjit)](https://pypi.org/project/cppjit/)
 [![Python](https://img.shields.io/pypi/pyversions/cppjit)](https://pypi.org/project/cppjit/)
-[![License](https://img.shields.io/badge/license-BSD--3--Clause--LBNL-green)](https://spdx.org/licenses/BSD-3-Clause-LBNL.html)
+[![License](https://img.shields.io/badge/license-Apache--2.0%20WITH%20LLVM--exception-blue)](https://github.com/compiler-research/cppjit/blob/main/LICENSE.txt)
 
 cppjit embeds an interactive C++ JIT compiler in Python: write or import
 C++ at run time and use its functions, classes, and templates as if they
@@ -223,3 +223,13 @@ python -m pytest -ra --tb=short
 Bug reports, feature requests, and questions go to the
 [issue tracker](https://github.com/compiler-research/cppjit/issues).
 Pull requests are welcome; run the test suite before submitting.
+
+### License
+
+cppjit is licensed under the Apache License v2.0 with LLVM Exceptions
+([LICENSE.txt](LICENSE.txt)). Portions are under the Lawrence Berkeley
+National Laboratory BSD license, whose notice LICENSE.txt retains.
+cppjit's authors are listed in
+[AUTHORS](AUTHORS) and everyone who has contributed in
+[CONTRIBUTORS](CONTRIBUTORS). Contributions are accepted under the project
+license (Apache License, section 5).

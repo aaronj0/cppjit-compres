@@ -1,0 +1,19 @@
+# This is the official list of CppJIT authors: the people whose work the
+# project is built on. Everyone who has contributed to CppJIT is listed in
+# CONTRIBUTORS.
+#
+# Copyright is held as stated in LICENSE.txt: by the individual authors and
+# contributors for the code written for CppJIT, under the Apache License
+# v2.0 with LLVM Exceptions, and by the holders named there for the portions
+# under other licenses.
+#
+# Names are added as
+#   Name <email address>
+# Keep the list sorted.
+
+Aaron Jomy <aaronjomyjoseph@gmail.com>
+Baidyanath Kundu <kundubaidya99@gmail.com>
+Jonas Rembser <jonas.rembser@cern.ch>
+Vassil Vassilev <v.g.vassilev@gmail.com>
+Vipul Cariappa <vipulcariappa@gmail.com>
+Wim Lavrijsen <WLavrijsen@lbl.gov>
