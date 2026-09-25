@@ -371,3 +371,39 @@ class TestJITERRORS:
         proc = self._run_child(child)
 
         assert "SECOND_OK" in proc.stdout, (proc.stdout, proc.stderr)
+
+    def test05_failed_wrapper_inside_a_pythonization_raises(self):
+        """A pythonized method whose C++ call cannot be JIT-compiled raises"""
+
+        # The constructor's wrapper is compiled before the failing module, so
+        # that module carries the first definitions of reserve() and its
+        # allocation helpers only. Constructing from a sized iterable then
+        # reaches the reserve() call inside the pythonized __init__, and
+        # that wrapper is the one the JIT cannot compile.
+        child = (
+            "import cppjit\n"
+            "v0 = cppjit.gbl.std.vector['int']()\n"
+            "cppjit.cppdef('extern int undefined_fn_q();"
+            " void first_r() { std::vector<int> v; undefined_fn_q();"
+            " v.reserve(4); }')\n"
+            "try:\n"
+            "    cppjit.gbl.first_r()\n"
+            "except BaseException as e:\n"
+            "    print('POISONED', type(e).__name__)\n"
+            "try:\n"
+            "    v = cppjit.gbl.std.vector['int'](range(10))\n"
+            "    print('CONSTRUCTED', len(v))\n"
+            "except BaseException as e:\n"
+            "    print('CAUGHT', type(e).__name__, str(e).replace('\\n', ' | '))\n"
+            "print('EXIT_OK')\n"
+        )
+        proc = self._run_child(child)
+
+        assert proc.returncode == 0, (proc.stdout, proc.stderr)
+        assert "EXIT_OK" in proc.stdout
+        assert "CppInterOp CRASH DETECTED" not in proc.stderr
+        assert "POISONED RuntimeError" in proc.stdout, (proc.stdout, proc.stderr)
+        caught = [l for l in proc.stdout.splitlines() if l.startswith("CAUGHT ")]
+        assert caught, (proc.stdout, proc.stderr)
+        assert "RuntimeError" in caught[0], caught[0]
+        assert "reserve" in caught[0], caught[0]
