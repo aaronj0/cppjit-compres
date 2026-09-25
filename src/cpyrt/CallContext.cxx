@@ -53,9 +53,12 @@ bool cpyrt::CallContext::SetMemoryPolicy(ECallFlags e) {
 
 //-----------------------------------------------------------------------------
 bool cpyrt::CallContext::SetGlobalSignalPolicy(bool setProtected) {
-  // Set the global signal policy, which determines whether a jmp address
-  // should be saved to return to after a C++ segfault.
+  // Set the global signal policy: under kProtected, method calls run inside
+  // CppInterOp's signal guard and a fatal signal raised in C++ comes back as
+  // a Python exception instead of terminating the process. The guard's
+  // handlers are installed and removed together with the policy.
   bool old = sSignalPolicy == kProtected;
   sSignalPolicy = setProtected ? kProtected : kNone;
+  Cpp::EnableSignalProtection(setProtected);
   return old;
 }

@@ -18,6 +18,7 @@ using namespace cppjit;
 // Standard
 #include <algorithm>
 #include <assert.h>
+#include <csignal>
 #include <exception>
 #include <memory>
 #include <sstream>
@@ -191,6 +192,83 @@ inline PyObject* cpyrt::CPPMethod::ExecuteFast(void* self, ptrdiff_t offset,
 #endif
 
   return result;
+}
+
+//----------------------------------------------------------------------------
+inline PyObject* cpyrt::CPPMethod::ExecuteProtected(void* self,
+                                                    ptrdiff_t offset,
+                                                    CallContext* ctxt) {
+  // run ExecuteFast under CppInterOp's signal guard: a fatal signal raised in
+  // the C++ call comes back as its number and is reported as a Python
+  // exception instead of terminating the process (see Cpp::InvokeProtected
+  // for what the longjmp recovery does and does not promise)
+
+  // per-method __sig2exc__ can request protection without the global policy,
+  // in which case the guard's handlers stay installed until the policy is
+  // reset
+  if (!Cpp::IsSignalProtectionEnabled() && !Cpp::EnableSignalProtection(true))
+    return ExecuteFast(self, offset, ctxt); // unsupported platform
+
+  struct Call {
+    CPPMethod* fMethod;
+    void* fSelf;
+    ptrdiff_t fOffset;
+    CallContext* fCtxt;
+    PyObject* fResult;
+  } call{this, self, offset, ctxt, nullptr};
+
+  int sig = Cpp::InvokeProtected(
+      [](void* p) {
+        Call* c = static_cast<Call*>(p);
+        c->fResult = c->fMethod->ExecuteFast(c->fSelf, c->fOffset, c->fCtxt);
+      },
+      &call);
+  if (sig == 0)
+    return call.fResult;
+
+  // the longjmp may have skipped an executor's GIL re-acquire (kReleaseGIL).
+  // Take the GIL back before touching any Python object.
+  if (!PyGILState_Check())
+    PyEval_RestoreThread(PyGILState_GetThisThreadState());
+
+  // a Python error left behind by the interrupted call can not be chained
+  // meaningfully. Report it, then raise the fatal-signal exception.
+  if (PyErr_Occurred()) {
+    PySys_WriteStderr("Python exception outstanding during C++ signal:\n");
+    PyErr_Print();
+  }
+
+  PyObject* pyexc = PyExc_SystemError;
+  const char* what = "unexpected signal";
+  switch (sig) {
+  case SIGSEGV:
+    pyexc = gSegvException;
+    what = "segfault";
+    break;
+  case SIGILL:
+    pyexc = gIllException;
+    what = "illegal instruction";
+    break;
+  case SIGABRT:
+    pyexc = gAbrtException;
+    what = "abort";
+    break;
+  case SIGFPE:
+    pyexc = PyExc_FloatingPointError;
+    what = "floating point exception";
+    break;
+#ifdef SIGBUS
+  case SIGBUS:
+    pyexc = gBusException;
+    what = "bus error";
+    break;
+#endif
+  }
+  PyErr_Format(pyexc,
+               "%s in C++ (signal %d caught in a protected call, the process "
+               "state may be inconsistent)",
+               what, sig);
+  return nullptr;
 }
 
 //----------------------------------------------------------------------------
@@ -963,10 +1041,18 @@ bool cpyrt::CPPMethod::ConvertAndSetArgs(cpyrt_PyArgs_t args, size_t nargsf,
 //----------------------------------------------------------------------------
 PyObject* cpyrt::CPPMethod::Execute(void* self, ptrdiff_t offset,
                                     CallContext* ctxt) {
-  // call the interface method; the kProtected signal policy is accepted for
-  // API compatibility but has no separate path: without a signal handler
-  // that longjmps back into the call there is nothing to protect
-  PyObject* result = ExecuteFast(self, offset, ctxt);
+  // call the interface method
+  PyObject* result = nullptr;
+
+  if (CallContext::sSignalPolicy != CallContext::kProtected &&
+      !(ctxt->fFlags & CallContext::kProtected)) {
+    // bypasses the signal guard (i.e. segfaults will abort)
+    result = ExecuteFast(self, offset, ctxt);
+  } else {
+    // at the cost of a sigsetjmp and a handler check per call, a fatal
+    // signal in C++ comes back as a Python exception
+    result = ExecuteProtected(self, offset, ctxt);
+  }
 
   if (!result && PyErr_Occurred())
     SetPyError_(0);

@@ -789,7 +789,6 @@ class TestSIGNALS:
 
         cls.fragile = cppjit.load_reflection_info(cls.test_dct)
 
-    @mark.xfail(run=False, reason="Crashes")
     def test01_abortive_signals(self):
         """Conversion from abortive signals to Python exceptions"""
 

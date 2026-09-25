@@ -49,11 +49,13 @@ int fragile::destroy_handle(OpaqueHandle_t handle, intptr_t addr) {
   return 0;
 }
 
-// for signal -> exception testing
-void fragile::segfault() {
-  int* i = 0;
-  *i = 42;
-}
+// for signal -> exception testing: the target pointer is an external volatile
+// global, so the optimizer cannot prove it null and the store is emitted.
+// With a literal null, clang -O3 dropped the function body (falling through
+// into sigabort) and g++ -O3 dropped the store, even through a volatile local.
+int* volatile fragile_null_target = 0;
+
+void fragile::segfault() { *fragile_null_target = 42; }
 
 void fragile::sigabort() { assert(0); }
 
