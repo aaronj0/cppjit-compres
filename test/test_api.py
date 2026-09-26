@@ -1,5 +1,5 @@
 from pytest import mark, raises, skip
-from support import IS_LINUX_ARM, IS_MAC, ispypy
+from support import CAN_JIT_STD_FILESYSTEM, IS_LINUX_ARM, IS_MAC, ispypy, run_child
 
 
 class TestAPI:
@@ -241,3 +241,65 @@ class TestJITERRORS:
             cppjit.cppdef("1aap = 42;")
         assert "invalid digit" in str(e.value)
         assert "invalid digit" not in capfd.readouterr().err
+
+    def test02_missing_runtime_symbol_raises(self):
+        """A missing runtime symbol raises at the call and the process survives"""
+
+        proc = run_child(
+            """\
+import sys
+import cppjit
+from pytest import raises
+cppjit.cppdef('''#include <filesystem>
+int fs_probe() { return (int)std::filesystem::path("/a/b.txt").filename().string().size(); }''')
+if sys.argv[1] == "1":
+    assert cppjit.gbl.fs_probe() == 5
+else:
+    with raises(RuntimeError, match="filesystem"):
+        cppjit.gbl.fs_probe()
+cppjit.cppdef("int after_probe() { return 7; }")
+assert cppjit.gbl.after_probe() == 7
+""",
+            "1" if CAN_JIT_STD_FILESYSTEM else "0",
+        )
+        assert proc.returncode == 0, proc.stderr
+        assert "CRASH DETECTED" not in proc.stderr
+
+    def test03_failed_wrapper_raises_for_every_return_type(self):
+        """A call wrapper the JIT cannot compile raises whatever the return type"""
+
+        # one cppdef per function keeps each failure in a module of its own
+        proc = run_child(
+            """\
+import cppjit
+from pytest import raises
+cppjit.cppdef("extern int undefined_fn_x();")
+cppjit.cppdef("int f_i() { return undefined_fn_x(); }")
+cppjit.cppdef("void f_v() { undefined_fn_x(); }")
+cppjit.cppdef('std::string f_s() { undefined_fn_x(); return ""; }')
+cppjit.cppdef("struct Opaque; Opaque make_opaque();")
+for name in ("f_i", "f_v", "f_s"):
+    with raises(RuntimeError, match="undefined_fn_x"):
+        getattr(cppjit.gbl, name)()
+with raises(ValueError, match="size of its return type is unknown"):
+    cppjit.gbl.make_opaque()
+"""
+        )
+        assert proc.returncode == 0, proc.stderr
+
+    @mark.xfail(strict=True, reason="a failed module poisons later linkonce_odr code")
+    def test04_failed_materialization_keeps_later_std_code_working(self):
+        """Unrelated std::string code still JIT-compiles after a failed call"""
+
+        proc = run_child(
+            """\
+import cppjit
+from pytest import raises
+cppjit.cppdef('extern int undefined_fn_p(); std::string first_s() { undefined_fn_p(); return ""; }')
+with raises(RuntimeError):
+    cppjit.gbl.first_s()
+cppjit.cppdef('std::string second_s() { return "ok"; }')
+assert cppjit.gbl.second_s() == "ok"
+"""
+        )
+        assert proc.returncode == 0, proc.stderr

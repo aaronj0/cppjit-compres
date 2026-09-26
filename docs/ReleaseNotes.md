@@ -36,6 +36,8 @@ This release supports Python 3.12-3.14 and LLVM 21-22.
   process.
 - `cppdef`, `cppexec`, `include` and `c_include` errors carry the
   compiler's diagnostic text.
+- A call whose JIT wrapper cannot be compiled raises a `RuntimeError`
+  carrying the JIT's report, whatever the return type.
 
 ## Contributors
 
