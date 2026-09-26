@@ -30,6 +30,10 @@ This release supports Python 3.12-3.14 and LLVM 21-22.
 
 - `import cppjit` raises a `RuntimeError` when the C++ standard headers do
   not parse, for example on a host without a C++ toolchain.
+- `libcppjit` no longer exports the standard-library symbols it links
+  statically. A feature the host `libstdc++` lacks, such as
+  `std::filesystem` on a GCC 8 runtime, raises instead of crashing the
+  process.
 
 ## Contributors
 
