@@ -34,6 +34,8 @@ This release supports Python 3.12-3.14 and LLVM 21-22.
   statically. A feature the host `libstdc++` lacks, such as
   `std::filesystem` on a GCC 8 runtime, raises instead of crashing the
   process.
+- `cppdef`, `cppexec`, `include` and `c_include` errors carry the
+  compiler's diagnostic text.
 
 ## Contributors
 
