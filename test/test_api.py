@@ -303,3 +303,23 @@ assert cppjit.gbl.second_s() == "ok"
 """
         )
         assert proc.returncode == 0, proc.stderr
+
+    def test05_failed_wrapper_inside_a_pythonization_raises(self):
+        """A pythonized method whose C++ call cannot be JIT-compiled raises"""
+
+        # construct first: the poisoned module then holds reserve()'s first definition
+        proc = run_child(
+            """\
+import cppjit
+from pytest import raises
+cppjit.gbl.std.vector["int"]()
+cppjit.cppdef('''extern int undefined_fn_q();
+void first_r() { std::vector<int> v; undefined_fn_q(); v.reserve(4); }''')
+with raises(RuntimeError):
+    cppjit.gbl.first_r()
+with raises(RuntimeError, match="reserve"):
+    cppjit.gbl.std.vector["int"](range(10))
+"""
+        )
+        assert proc.returncode == 0, proc.stderr
+        assert "CRASH DETECTED" not in proc.stderr
