@@ -2148,6 +2148,34 @@ class TestSTLTUPLE:
         assert s2.fInt == 42
 
 
+class TestSTLOPTIONAL:
+    def test01_optional_attribute_forwarding(self):
+        """An empty optional must not forward attribute lookups to its value"""
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        #include <optional>
+
+        namespace optional_attribute_forwarding {
+        struct Value {
+            int answer = 42;
+        };
+
+        std::optional<Value> empty_optional() { return std::nullopt; }
+        std::optional<Value> full_optional() { return Value{}; }
+        }""")
+
+        ns = cppjit.gbl.optional_attribute_forwarding
+        empty = ns.empty_optional()
+        full = ns.full_optional()
+
+        assert full.answer == 42
+        with raises(AttributeError):
+            empty.answer
+        assert not hasattr(empty, "_repr_html_")
+
+
 class TestSTLPAIR:
     def setup_class(cls):
         cls.test_dct = test_dct

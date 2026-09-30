@@ -22,6 +22,7 @@ PyObject* cpyrt::PyStrings::gDict = nullptr;
 PyObject* cpyrt::PyStrings::gEmptyString = nullptr;
 PyObject* cpyrt::PyStrings::gEq = nullptr;
 PyObject* cpyrt::PyStrings::gFollow = nullptr;
+PyObject* cpyrt::PyStrings::gHasValue = nullptr;
 PyObject* cpyrt::PyStrings::gGetItem = nullptr;
 PyObject* cpyrt::PyStrings::gGetNoCheck = nullptr;
 PyObject* cpyrt::PyStrings::gSetItem = nullptr;
@@ -105,6 +106,7 @@ bool cpyrt::CreatePyStrings() {
     return false;
   CPPJIT_INITIALIZE_STRING(gEq, __eq__);
   CPPJIT_INITIALIZE_STRING(gFollow, __follow__);
+  CPPJIT_INITIALIZE_STRING(gHasValue, has_value);
   CPPJIT_INITIALIZE_STRING(gGetItem, __getitem__);
   CPPJIT_INITIALIZE_STRING(gGetNoCheck, _getitem__unchecked);
   CPPJIT_INITIALIZE_STRING(gSetItem, __setitem__);
@@ -198,6 +200,8 @@ PyObject* cpyrt::DestroyPyStrings() {
   PyStrings::gEq = nullptr;
   Py_DECREF(PyStrings::gFollow);
   PyStrings::gFollow = nullptr;
+  Py_DECREF(PyStrings::gHasValue);
+  PyStrings::gHasValue = nullptr;
   Py_DECREF(PyStrings::gGetItem);
   PyStrings::gGetItem = nullptr;
   Py_DECREF(PyStrings::gGetNoCheck);
