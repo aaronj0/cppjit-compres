@@ -887,6 +887,13 @@ static PyObject* AddSmartPtrType(PyObject*, PyObject* args) {
 }
 
 //----------------------------------------------------------------------------
+static PyObject* IsCUDAEnabled(PyObject*, PyObject*) {
+  if (interop::IsCUDAEnabled())
+    Py_RETURN_TRUE;
+  Py_RETURN_FALSE;
+}
+
+//----------------------------------------------------------------------------
 static PyObject* BeginCaptureStderr(PyObject*, PyObject*) {
   gOldErrorBuffer = std::cerr.rdbuf();
   std::cerr.rdbuf(gCapturedError.rdbuf());
@@ -961,6 +968,8 @@ static PyMethodDef gcpyrtMethods[] = {
      (char*)"Modify held C++ object ownership."},
     {(char*)"AddSmartPtrType", (PyCFunction)AddSmartPtrType, METH_VARARGS,
      (char*)"Add a smart pointer to the list of known smart pointer types."},
+    {(char*)"IsCUDAEnabled", (PyCFunction)IsCUDAEnabled, METH_NOARGS,
+     (char*)"Whether the interpreter was created in CUDA mode (CPPJIT_ENABLE_CUDA)."},
     {(char*)"_begin_capture_stderr", (PyCFunction)BeginCaptureStderr,
      METH_NOARGS, (char*)"Begin capturing stderr to a in memory buffer."},
     {(char*)"_end_capture_stderr", (PyCFunction)EndCaptureStderr, METH_NOARGS,

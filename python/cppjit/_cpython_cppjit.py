@@ -13,6 +13,7 @@ __all__ = [
     "nullptr",
     "default",
     "_backend",
+    "CUDA_ENABLED",
     "_begin_capture_stderr",
     "_end_capture_stderr",
 ]
@@ -192,6 +193,8 @@ addressof = _backend.addressof
 bind_object = _backend.bind_object
 nullptr = _backend.nullptr
 default = _backend.default
+# True when the interpreter was created in CUDA mode (CPPJIT_ENABLE_CUDA).
+CUDA_ENABLED = bool(_backend.IsCUDAEnabled())
 
 
 def load_reflection_info(name):
