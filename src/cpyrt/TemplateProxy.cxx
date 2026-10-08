@@ -808,7 +808,7 @@ static int tpp_cuda_device_arg(PyObject* obj, unsigned long long stream,
       Py_XDECREF(d);
     }
     const char* ts =
-        PyErr_Occurred() ? nullptr : cpyrt_PyText_AsString(typestr);
+        PyErr_Occurred() ? nullptr : PyUnicode_AsUTF8(typestr);
     // byte order, kind, then the width: anything shorter is malformed and
     // must not be read past
     if (ts && (!ts[0] || !ts[1] || !ts[2]))
@@ -876,7 +876,7 @@ static PyObject* tpp_cuda_launch(TemplateProxy* pytmpl, PyObject* const* args,
   }
   TemplateInfo& ti = *pytmpl->fTI;
   if (!ti.fCUDALauncherName)
-    ti.fCUDALauncherName = cpyrt_PyText_InternFromString(
+    ti.fCUDALauncherName = PyUnicode_InternFromString(
         (interop::kCUDALaunchPrefix + ti.fCppName).c_str());
 
   PyObject* launcher = PyObject_GetAttr(ti.fPyClass, ti.fCUDALauncherName);
