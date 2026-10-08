@@ -11,7 +11,7 @@ include(GNUInstallDirs)
 # Perhaps this should permanently be OFF and users can build their own CppInterOp if they want to run the tests?
 option(CPPJIT_ENABLE_CPPINTEROP_TESTS "enable CppInterOp tests" OFF)
 set(CPPINTEROP_GIT_REPOSITORY "https://github.com/aaronj0/CppInterOp.git" CACHE STRING "")
-set(CPPINTEROP_GIT_TAG "4b9a6491cef04673a76679f395ff6d43bcfe2547" CACHE STRING "")
+set(CPPINTEROP_GIT_TAG "3efef3aa4400545d323ecc8848c6ecc1798e4712" CACHE STRING "")
 set(CPPINTEROP_SOURCE_DIR "" CACHE PATH
     "Override default CppInterOp built by ExternalProject_Add, with a path to local CppInterOp source")
 
