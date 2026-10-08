@@ -278,10 +278,10 @@ def macro(cppm):
 
 def load_library(name):
     """Explicitly load a shared library."""
-    with _stderr_capture() as err:
-        result = gbl.Cpp.LoadLibrary(name, True)
+    reason = gbl.std.string()
+    result = gbl.Cpp.LoadLibrary(name, True, reason)
     if result == False:  # noqa: E712
-        raise RuntimeError('Could not load library "%s": %s' % (name, err.err))
+        raise RuntimeError('Could not load library "%s": %s' % (name, reason))
 
     return True
 
@@ -474,6 +474,11 @@ def multi(*bases):  # after six, see also _typemap.py
 
 # - workaround (TODO: may not be needed with Clang9) --------------------------
 if "win32" in sys.platform:
-    cppdef("""template<>
-    std::basic_ostream<char, std::char_traits<char>>& __cdecl std::endl<char, std::char_traits<char>>(
-        std::basic_ostream<char, std::char_traits<char>>&);""")
+    # Ill-formed if std::endl<char> was already instantiated; then the
+    # instantiation exists and the workaround is unnecessary.
+    try:
+        cppdef("""template<>
+        std::basic_ostream<char, std::char_traits<char>>& __cdecl std::endl<char, std::char_traits<char>>(
+            std::basic_ostream<char, std::char_traits<char>>&);""")
+    except SyntaxError:
+        pass

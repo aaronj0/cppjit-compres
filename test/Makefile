@@ -1,6 +1,11 @@
 # the C++ sides of the tests live under cpp/ and build into shared
 # libraries next to their sources (load_reflection_info resolves the
-# header as a sibling of the loaded Dict.so)
+# header as a sibling of the loaded Dict library)
+soext = .so
+ifeq ($(OS),Windows_NT)
+  soext = .dll
+endif
+
 dictnames = advancedcpp \
             advancedcpp2 \
             conversions \
@@ -17,7 +22,7 @@ dictnames = advancedcpp \
             stltypes \
             templates
 
-dicts = $(addprefix cpp/,$(addsuffix Dict.so,$(dictnames)))
+dicts = $(addprefix cpp/,$(addsuffix Dict$(soext),$(dictnames)))
 
 all : $(dicts)
 
@@ -29,11 +34,12 @@ ifeq ($(PLATFORM),Darwin)
   cppflags+=-dynamiclib -single_module -undefined dynamic_lookup -Wno-delete-non-virtual-dtor
 endif
 
-cpp/%Dict.so: cpp/%.cxx
-	$(CXX) $(cppflags) -shared -o $@ $^
+# a worker can load the library while another rebuilds it, so publish it whole
+cpp/%Dict$(soext): cpp/%.cxx cpp/%.h
+	$(CXX) $(cppflags) -shared -o $@.$$$$.tmp $< && mv -f $@.$$$$.tmp $@
 
-# convenience: `make datatypesDict.so` builds cpp/datatypesDict.so
-%Dict.so: cpp/%Dict.so ;
+# convenience: `make datatypesDict$(soext)` builds cpp/datatypesDict$(soext)
+%Dict$(soext): cpp/%Dict$(soext) ;
 
 .PHONY: test clean
 
@@ -41,4 +47,4 @@ test:
 	pytest test_*.py
 
 clean:
-	-rm -f $(dicts)
+	-rm -f $(dicts) cpp/*.tmp cpp/*.lock

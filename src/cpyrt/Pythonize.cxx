@@ -101,7 +101,7 @@ inline PyObject* CallPyObjMethod(PyObject* obj, const char* meth,
 //-----------------------------------------------------------------------------
 PyObject* PyStyleIndex(PyObject* self, PyObject* index) {
   // Helper; converts python index into straight C index.
-  Py_ssize_t idx = PyInt_AsSsize_t(index);
+  Py_ssize_t idx = PyLong_AsSsize_t(index);
   if (idx == (Py_ssize_t)-1 && PyErr_Occurred())
     return nullptr;
 
@@ -160,7 +160,7 @@ inline PyObject* CallSelfIndex(CPPInstance* self, PyObject* idx,
 //- "smart pointer" behavior ---------------------------------------------------
 static PyObject* smart_follow(PyObject* self, PyObject* name,
                               PyObject* method) {
-  if (!cpyrt_PyText_Check(name))
+  if (!PyUnicode_Check(name))
     PyErr_SetString(PyExc_TypeError,
                     "getattr(): attribute name must be string");
 
@@ -173,7 +173,7 @@ static PyObject* smart_follow(PyObject* self, PyObject* name,
     PyObject* val1 = PyObject_Str((PyObject*)Py_TYPE(self));
     PyObject* val2 = PyObject_Str(name);
     PyErr_Format(PyExc_AttributeError, "%s object has no attribute \'%s\'",
-                 cpyrt_PyText_AsString(val1), cpyrt_PyText_AsString(val2));
+                 PyUnicode_AsUTF8(val1), PyUnicode_AsUTF8(val2));
     Py_DECREF(val2);
     Py_DECREF(val1);
 
@@ -194,11 +194,30 @@ PyObject* DeRefGetAttr(PyObject* self, PyObject* name) {
     // in practice, whereas as-is, they can accidentally dereference the result
     // of end() on some STL containers. Obviously, this is a dumb hack that
     // should be resolved more fundamentally.
-    PyErr_SetString(PyExc_AttributeError, cpyrt_PyText_AsString(name));
+    PyErr_SetString(PyExc_AttributeError, PyUnicode_AsUTF8(name));
     return nullptr;
   }
 
   return smart_follow(self, name, PyStrings::gDeref);
+}
+
+//-----------------------------------------------------------------------------
+PyObject* ValueGetAttr(PyObject* self, PyObject* name) {
+  // std::optional and std::expected require has_value() before operator*().
+  PyObject* has_value = PyObject_CallMethodNoArgs(self, PyStrings::gHasValue);
+  if (!has_value)
+    return nullptr;
+
+  const int contains_value = PyObject_IsTrue(has_value);
+  Py_DECREF(has_value);
+  if (contains_value < 0)
+    return nullptr;
+  if (!contains_value) {
+    PyErr_SetObject(PyExc_AttributeError, name);
+    return nullptr;
+  }
+
+  return DeRefGetAttr(self, name);
 }
 
 //-----------------------------------------------------------------------------
@@ -292,7 +311,7 @@ static ItemGetter* GetGetter(PyObject* args) {
 
   if (PyTuple_GET_SIZE(args) == 1) {
     PyObject* fi = PyTuple_GET_ITEM(args, 0);
-    if (cpyrt_PyText_Check(fi) || PyBytes_Check(fi))
+    if (PyUnicode_Check(fi) || PyBytes_Check(fi))
       return nullptr; // do not accept string to fill std::vector<char>
 
     // TODO: this only tests for new-style buffers, which is too strict, but a
@@ -458,13 +477,24 @@ PyObject* VectorIAdd(PyObject* self, PyObject* args, PyObject* /* kwds */) {
   if (PyTuple_GET_SIZE(args) == 1) {
     PyObject* fi = PyTuple_GET_ITEM(args, 0);
     if (PyObject_CheckBuffer(fi) &&
-        !(cpyrt_PyText_Check(fi) || PyBytes_Check(fi))) {
+        !(PyUnicode_Check(fi) || PyBytes_Check(fi))) {
       PyObject* vend = PyObject_CallMethodNoArgs(self, PyStrings::gEnd);
       if (vend) {
-        PyObject* result = PyObject_CallMethodObjArgs(self, PyStrings::gInsert,
-                                                      vend, fi, nullptr);
+        // when __iadd__ is overriden, the operation does not end with
+        // calling the __iadd__ method, but also assigns the result to the
+        // lhs of the iadd. For example, performing vec += arr, Python
+        // first calls our override, and then does vec = vec.iadd(arr).
+        PyObject* it = PyObject_CallMethodObjArgs(self, PyStrings::gInsert,
+                                                  vend, fi, nullptr);
         Py_DECREF(vend);
-        return result;
+
+        if (!it)
+          return nullptr;
+
+        Py_DECREF(it);
+        // Assign the result of the __iadd__ override to the std::vector
+        Py_INCREF(self);
+        return self;
       }
     }
   }
@@ -525,7 +555,7 @@ PyObject* VectorData(PyObject* self, PyObject*) {
     return pydata;
   }
 
-  long clen = PyInt_AsLong(pylen);
+  long clen = PyLong_AsLong(pylen);
   Py_DECREF(pylen);
 
   if (CPPInstance_Check(pydata)) {
@@ -659,8 +689,8 @@ PyObject* VectorGetItem(CPPInstance* self, PySliceObject* index) {
     PyObject* nseq = PyObject_CallObject(pyclass, nullptr);
 
     Py_ssize_t start, stop, step;
-    PySlice_GetIndices((cpyrt_PySliceCast)index,
-                       PyObject_Length((PyObject*)self), &start, &stop, &step);
+    PySlice_GetIndices((PyObject*)index, PyObject_Length((PyObject*)self),
+                       &start, &stop, &step);
 
     const Py_ssize_t nlen = PySequence_Size((PyObject*)self);
     if (!AdjustSlice(nlen, start, stop, step))
@@ -668,7 +698,7 @@ PyObject* VectorGetItem(CPPInstance* self, PySliceObject* index) {
 
     const Py_ssize_t sign = step < 0 ? -1 : 1;
     for (Py_ssize_t i = start; i * sign < stop * sign; i += step) {
-      PyObject* pyidx = PyInt_FromSsize_t(i);
+      PyObject* pyidx = PyLong_FromSsize_t(i);
       PyObject* item = PyObject_CallMethodOneArg((PyObject*)self,
                                                  PyStrings::gGetNoCheck, pyidx);
       CallPyObjMethod(nseq, "push_back", item);
@@ -704,15 +734,15 @@ PyObject* VectorBoolGetItem(CPPInstance* self, PyObject* idx) {
     PyObject* nseq = PyObject_CallObject(pyclass, nullptr);
 
     Py_ssize_t start, stop, step;
-    PySlice_GetIndices((cpyrt_PySliceCast)idx, PyObject_Length((PyObject*)self),
-                       &start, &stop, &step);
+    PySlice_GetIndices((PyObject*)idx, PyObject_Length((PyObject*)self), &start,
+                       &stop, &step);
     const Py_ssize_t nlen = PySequence_Size((PyObject*)self);
     if (!AdjustSlice(nlen, start, stop, step))
       return nseq;
 
     const Py_ssize_t sign = step < 0 ? -1 : 1;
     for (Py_ssize_t i = start; i * sign < stop * sign; i += step) {
-      PyObject* pyidx = PyInt_FromSsize_t(i);
+      PyObject* pyidx = PyLong_FromSsize_t(i);
       PyObject* item = PyObject_CallMethodOneArg((PyObject*)self,
                                                  PyStrings::gGetItem, pyidx);
       CallPyObjMethod(nseq, "push_back", item);
@@ -803,7 +833,7 @@ PyObject* ArrayInit(PyObject* self, PyObject* args, PyObject* /* kwds */) {
     PyObject* si_call = PyObject_GetAttr(self, PyStrings::gSetItem);
     for (Py_ssize_t i = 0; i < fillsz; ++i) {
       PyObject* item = PySequence_GetItem(items, i);
-      PyObject* index = PyInt_FromSsize_t(i);
+      PyObject* index = PyLong_FromSsize_t(i);
       PyObject* sires =
           PyObject_CallFunctionObjArgs(si_call, index, item, nullptr);
       Py_DECREF(index);
@@ -1041,7 +1071,7 @@ PyObject* STLSequenceIter(PyObject* self) {
         if (!PyIter_Check(iter)) { // no tp_iternext, or the
                                    // _PyObject_NextNotImplemented sentinel
           itype->tp_iternext = (iternextfunc)STLIterNext;
-          Utility::AddToClass((PyObject*)itype, CPPJIT__next__,
+          Utility::AddToClass((PyObject*)itype, "__next__",
                               (PyCFunction)STLIterNext, METH_NOARGS);
           if (!itype->tp_iter) {
             itype->tp_iter = (getiterfunc)PyObject_SelfIter;
@@ -1099,7 +1129,7 @@ the
 of
 // consecutive indices, it such index is of integer type.
     Py_ssize_t size = PySequence_Size(self);
-    Py_ssize_t idx  = PyInt_AsSsize_t(obj);
+    Py_ssize_t idx  = PyLong_AsSsize_t(obj);
     if ((size == (Py_ssize_t)-1 || idx == (Py_ssize_t)-1) && PyErr_Occurred()) {
     // argument conversion problem: let method itself resolve anew and report
         PyErr_Clear();
@@ -1142,7 +1172,7 @@ PyObject* PairUnpack(PyObject* self, PyObject* pyindex) {
 }
 
 //- simplistic len() functions -----------------------------------------------
-PyObject* ReturnTwo(CPPInstance*, PyObject*) { return PyInt_FromLong(2); }
+PyObject* ReturnTwo(CPPInstance*, PyObject*) { return PyLong_FromLong(2); }
 
 //- shared/unique_ptr behavior -----------------------------------------------
 PyObject* SmartPtrInit(PyObject* self, PyObject* args, PyObject* /* kwds */) {
@@ -1172,7 +1202,7 @@ static inline PyObject* cpyrt_PyString_FromCppString(std::string_view s,
                                                      bool native = true) {
   if (native)
     return PyBytes_FromStringAndSize(s.data(), s.size());
-  return cpyrt_PyText_FromStringAndSize(s.data(), s.size());
+  return PyUnicode_FromStringAndSize(s.data(), s.size());
 }
 
 static inline PyObject* cpyrt_PyString_FromCppString(std::wstring_view s,
@@ -1258,7 +1288,7 @@ static inline PyObject* cpyrt_PyString_FromCppString(std::wstring_view s,
     }                                                                          \
     if (PyErr_Occurred())                                                      \
       return nullptr;                                                          \
-    return PyInt_FromLong(result);                                             \
+    return PyLong_FromLong(result);                                            \
   }
 
 CPPJIT_IMPL_STRING_PYTHONIZATION_CMP(std::string, STL)
@@ -1298,7 +1328,7 @@ PyObject* STLStringContains(CPPInstance* self, PyObject* pyobj) {
   if (!obj)
     return nullptr;
 
-  const char* needle = cpyrt_PyText_AsString(pyobj);
+  const char* needle = PyUnicode_AsUTF8(pyobj);
   if (!needle)
     return nullptr;
 
@@ -1320,8 +1350,8 @@ PyObject* STLStringReplace(CPPInstance* self, PyObject* args,
   // version has no overload that takes a string
 
   if (2 <= PyTuple_GET_SIZE(args) &&
-      cpyrt_PyText_Check(PyTuple_GET_ITEM(args, 0))) {
-    PyObject* pystr = cpyrt_PyText_FromStringAndSize(obj->data(), obj->size());
+      PyUnicode_Check(PyTuple_GET_ITEM(args, 0))) {
+    PyObject* pystr = PyUnicode_FromStringAndSize(obj->data(), obj->size());
     PyObject* meth = PyObject_GetAttrString(pystr, (char*)"replace");
     Py_DECREF(pystr);
     PyObject* result = PyObject_CallObject(meth, args);
@@ -1358,15 +1388,14 @@ PyObject* STLStringReplace(CPPInstance* self, PyObject* args,
         if (PyLongOrInt_AsULong64(result) ==                                   \
             (PY_ULONG_LONG)std::string::npos) {                                \
           Py_DECREF(result);                                                   \
-          return PyInt_FromLong(-1);                                           \
+          return PyLong_FromLong(-1);                                          \
         }                                                                      \
         return result;                                                         \
       }                                                                        \
       PyErr_Clear();                                                           \
     }                                                                          \
                                                                                \
-    PyObject* pystr =                                                          \
-        cpyrt_PyText_FromStringAndSize(obj->data(), obj->size());              \
+    PyObject* pystr = PyUnicode_FromStringAndSize(obj->data(), obj->size());   \
     PyObject* pymeth = PyObject_GetAttrString(pystr, (char*)#pyname);          \
     Py_DECREF(pystr);                                                          \
     PyObject* result = PyObject_CallObject(pymeth, args);                      \
@@ -1386,7 +1415,7 @@ PyObject* STLStringGetAttr(CPPInstance* self, PyObject* attr_name) {
   if (!obj)
     return nullptr;
 
-  PyObject* pystr = cpyrt_PyText_FromStringAndSize(obj->data(), obj->size());
+  PyObject* pystr = PyUnicode_FromStringAndSize(obj->data(), obj->size());
   PyObject* attr = PyObject_GetAttr(pystr, attr_name);
   Py_DECREF(pystr);
   return attr;
@@ -1396,7 +1425,7 @@ PyObject* UTF8Repr(PyObject* self) {
   // force C++ string types conversion to Python str per Python __repr__
   // requirements
   PyObject* res = PyObject_CallMethodNoArgs(self, PyStrings::gCppRepr);
-  if (!res || cpyrt_PyText_Check(res))
+  if (!res || PyUnicode_Check(res))
     return res;
   PyObject* str_res = PyObject_Str(res);
   Py_DECREF(res);
@@ -1407,7 +1436,7 @@ PyObject* UTF8Str(PyObject* self) {
   // force C++ string types conversion to Python str per Python __str__
   // requirements
   PyObject* res = PyObject_CallMethodNoArgs(self, PyStrings::gCppStr);
-  if (!res || cpyrt_PyText_Check(res))
+  if (!res || PyUnicode_Check(res))
     return res;
   PyObject* str_res = PyObject_Str(res);
   Py_DECREF(res);
@@ -1418,7 +1447,7 @@ Py_hash_t STLStringHash(PyObject* self) {
   // std::string objects hash to the same values as Python strings to allow
   // matches in dictionaries etc.
   PyObject* data = STLStringGetData(self, false);
-  Py_hash_t h = cpyrt_PyText_Type.tp_hash(data);
+  Py_hash_t h = PyUnicode_Type.tp_hash(data);
   Py_DECREF(data);
   return h;
 }
@@ -1496,7 +1525,7 @@ PyObject* STLIterNext(PyObject* self) {
         PyObject* iter = PyObject_CallMethodNoArgs(self, PyStrings::gPreInc);
         if (!iter) {
           PyErr_Clear();
-          static PyObject* dummy = PyInt_FromLong(1l);
+          static PyObject* dummy = PyLong_FromLong(1l);
           iter = PyObject_CallMethodOneArg(self, PyStrings::gPostInc, dummy);
         }
         iter_valid = iter && PyObject_RichCompareBool(last, self, Py_NE);
@@ -1575,7 +1604,7 @@ static PyObject* ComplexRepr(PyObject* self) {
 
   std::ostringstream s;
   s << '(' << r << '+' << i << "j)";
-  return cpyrt_PyText_FromString(s.str().c_str());
+  return PyUnicode_FromString(s.str().c_str());
 }
 
 static PyObject* ComplexDRealGet(CPPInstance* self, void*) {
@@ -1659,12 +1688,20 @@ bool cpyrt::Pythonize(PyObject* pyclass, interop::TCppScope_t scope) {
   // prefer operator-> as that returns a pointer (which is simpler since it
   // never has to deal with ref-assignment), but operator* plays better with STL
   // iters and algorithms
+  // optional and expected use operator* to access a contained value, rather
+  // than to provide pointer-like access to an object.
+  const bool has_value_semantics = IsTemplatedSTLClass(name, "optional") ||
+                                   IsTemplatedSTLClass(name, "expected");
   if (HasAttrDirect(pyclass, PyStrings::gDeref) &&
-      !interop::IsSmartPtr(klass->fCppType))
-    Utility::AddToClass(pyclass, "__getattr__", (PyCFunction)DeRefGetAttr,
-                        METH_O);
-  else if (HasAttrDirect(pyclass, PyStrings::gFollow) &&
-           !interop::IsSmartPtr(klass->fCppType))
+      !interop::IsSmartPtr(klass->fCppType)) {
+    if (has_value_semantics)
+      Utility::AddToClass(pyclass, "__getattr__", (PyCFunction)ValueGetAttr,
+                          METH_O);
+    else
+      Utility::AddToClass(pyclass, "__getattr__", (PyCFunction)DeRefGetAttr,
+                          METH_O);
+  } else if (HasAttrDirect(pyclass, PyStrings::gFollow) &&
+             !interop::IsSmartPtr(klass->fCppType))
     Utility::AddToClass(pyclass, "__getattr__", (PyCFunction)FollowGetAttr,
                         METH_O);
 
@@ -1898,12 +1935,9 @@ bool cpyrt::Pythonize(PyObject* pyclass, interop::TCppScope_t scope) {
                           METH_VARARGS | METH_KEYWORDS);
 
       // data with size
-      Utility::AddToClass(pyclass, "__real_data", "data");
+      if (!Utility::AddToClass(pyclass, "__real_data", "data"))
+        PyErr_Clear(); // no 'data' method to alias
       Utility::AddToClass(pyclass, "data", (PyCFunction)VectorData);
-
-      // numpy array conversion
-      Utility::AddToClass(pyclass, "__array__", (PyCFunction)VectorArray,
-                          METH_VARARGS | METH_KEYWORDS /* unused */);
 
       // checked getitem
       if (HasAttrDirect(pyclass, PyStrings::gLen)) {
@@ -1923,6 +1957,16 @@ bool cpyrt::Pythonize(PyObject* pyclass, interop::TCppScope_t scope) {
       interop::TCppType_t value_type =
           interop::GetTypeFromScope(interop::GetNamed("value_type", scope));
       interop::TCppType_t vtype = interop::ResolveType(value_type);
+
+      // numpy array conversion; only for vectors of non-class types:
+      // data() on a vector of class instances hands back a proxy of the
+      // first element, so forwarding __array__ to it would yield that
+      // element instead of the full vector (numpy's generic sequence
+      // protocol handles such vectors correctly on its own)
+      if (vtype && !interop::GetScopeFromType(vtype))
+        Utility::AddToClass(pyclass, "__array__", (PyCFunction)VectorArray,
+                            METH_VARARGS | METH_KEYWORDS /* unused */);
+
       if (vtype) { // actually resolved?
         PyObject* pyvalue_type = PyLong_FromVoidPtr(vtype.data);
         PyObject_SetAttr(pyclass, PyStrings::gValueTypePtr, pyvalue_type);
@@ -1997,7 +2041,7 @@ bool cpyrt::Pythonize(PyObject* pyclass, interop::TCppScope_t scope) {
            (name.find("iterator") != std::string::npos ||
             gIteratorTypes.find(name) != gIteratorTypes.end())) {
     ((PyTypeObject*)pyclass)->tp_iternext = (iternextfunc)STLIterNext;
-    Utility::AddToClass(pyclass, CPPJIT__next__, (PyCFunction)STLIterNext,
+    Utility::AddToClass(pyclass, "__next__", (PyCFunction)STLIterNext,
                         METH_NOARGS);
     ((PyTypeObject*)pyclass)->tp_iter = (getiterfunc)PyObject_SelfIter;
     Utility::AddToClass(pyclass, "__iter__", (PyCFunction)PyObject_SelfIter,
@@ -2122,7 +2166,7 @@ bool cpyrt::Pythonize(PyObject* pyclass, interop::TCppScope_t scope) {
   //   through to base classes
   bool bUserOk = true;
   PyObject* res = nullptr;
-  PyObject* pyname = cpyrt_PyText_FromString(name.c_str());
+  PyObject* pyname = PyUnicode_FromString(name.c_str());
   if (HasAttrDirect(pyclass, PyStrings::gExPythonize)) {
     res = PyObject_CallMethodObjArgs(pyclass, PyStrings::gExPythonize, pyclass,
                                      pyname, nullptr);
@@ -2153,7 +2197,7 @@ bool cpyrt::Pythonize(PyObject* pyclass, interop::TCppScope_t scope) {
   if (!outer_scope.empty()) {
     auto p = pyzMap.find(outer_scope);
     if (p != pyzMap.end()) {
-      PyObject* subname = cpyrt_PyText_FromString(
+      PyObject* subname = PyUnicode_FromString(
           name.substr(outer_scope.size() + 2, std::string::npos).c_str());
       pstatus = run_pythonizors(pyclass, subname, p->second);
       Py_DECREF(subname);

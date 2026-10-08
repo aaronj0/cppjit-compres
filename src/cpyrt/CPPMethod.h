@@ -91,13 +91,16 @@ protected:
 
   virtual bool InitExecutor_(Executor*&, CallContext* ctxt = nullptr);
 
+  // whether fExecutor's result is a real PyObject* (ConstructorExecutor
+  // returns the new object's address instead)
+  virtual bool ResultIsPyObject() const { return true; }
+
 private:
   void Copy_(const CPPMethod&);
   void Destroy_();
   bool VerifyArgCount_(Py_ssize_t);
 
   PyObject* ExecuteFast(void*, ptrdiff_t, CallContext*);
-  PyObject* ExecuteProtected(void*, ptrdiff_t, CallContext*);
 
   bool InitConverters_();
 
@@ -107,6 +110,8 @@ private:
   // representation
   interop::TCppMethod_t fMethod;
   interop::TCppScope_t fScope;
+  // class that declares fMethod, which may be a base of fScope (set by Call)
+  interop::TCppScope_t fDeclaringScope;
   Executor* fExecutor;
 
   // call dispatch buffers

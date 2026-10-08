@@ -339,7 +339,7 @@ bool cpyrt::InsertDispatcher(CPPScope* klass, PyObject* bases, PyObject* dct,
 
       std::string mtCppName =
           interop::GetName(interop::TCppScope_t(method.data));
-      PyObject* key = cpyrt_PyText_FromString(mtCppName.c_str());
+      PyObject* key = PyUnicode_FromString(mtCppName.c_str());
       int contains = PyDict_Contains(dct, key);
       if (contains == -1)
         PyErr_Clear();
@@ -423,7 +423,7 @@ bool cpyrt::InsertDispatcher(CPPScope* klass, PyObject* bases, PyObject* dct,
           // TODO: should probably invert this looping; but that makes handling
           // overloads clunky
           PyObject* key = PyList_GET_ITEM(keys, i);
-          std::string mtCppName = cpyrt_PyText_AsString(key);
+          std::string mtCppName = PyUnicode_AsUTF8(key);
           const auto& methods = FindBaseMethod(tbase, mtCppName);
           for (auto method : methods)
             InjectMethod(method, mtCppName, code);
@@ -553,7 +553,12 @@ bool cpyrt::InsertDispatcher(CPPScope* klass, PyObject* bases, PyObject* dct,
   // is not a base of the Python class to keep the inheritance tree intact)
   for (const auto& name : protected_names) {
     PyObject* disp_dct = PyObject_GetAttr(disp_proxy, PyStrings::gDict);
+#if PY_VERSION_HEX < 0x30d00f0
     PyObject* pyf = PyMapping_GetItemString(disp_dct, (char*)name.c_str());
+#else
+    PyObject* pyf = nullptr;
+    PyMapping_GetOptionalItemString(disp_dct, (char*)name.c_str(), &pyf);
+#endif
     if (pyf) {
       PyObject_SetAttrString((PyObject*)klass, (char*)name.c_str(), pyf);
       Py_DECREF(pyf);

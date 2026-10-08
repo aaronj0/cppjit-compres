@@ -1,25 +1,58 @@
 from __future__ import print_function
 
 import os
+import shutil
 import subprocess
 import sys
 
 import py
+import pytest
+
+try:
+    import fcntl
+except ImportError:  # Windows: no concurrent make workflow to serialize
+    fcntl = None
 
 currpath = py.path.local(__file__).dirpath()
 
+_NO_TOOLCHAIN = "no make and C++ compiler to build the test dictionaries"
+# a build system that supplies the dictionaries itself sets CPPJIT_TEST_SKIP_MAKE
+_PREBUILT = bool(os.getenv("CPPJIT_TEST_SKIP_MAKE", False))
+# otherwise test/Makefile builds them with make and its default $(CXX)
+_HAS_TOOLCHAIN = bool(
+    shutil.which("make") and shutil.which(os.environ.get("CXX") or "g++")
+)
 
-def setup_make(targetname):
-    if os.getenv("CPPJIT_TEST_SKIP_MAKE", False):
+# for a test that loads a dictionary in a module whose other tests need none
+needs_dictionary = pytest.mark.skipif(
+    not (_PREBUILT or _HAS_TOOLCHAIN), reason=_NO_TOOLCHAIN
+)
+
+
+def setup_make(targetname, optional=False):
+    if _PREBUILT:
         return
 
-    popen = subprocess.Popen(
-        ["make", targetname + "Dict.so"],
-        cwd=str(currpath),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-    )
-    stdout, _ = popen.communicate()
+    if not _HAS_TOOLCHAIN:
+        if optional:
+            return
+        pytest.skip(_NO_TOOLCHAIN, allow_module_level=True)
+
+    # several files share a dictionary, so workers race make for it; the lock
+    # is per target to keep unrelated builds parallel
+    lockf = open(str(currpath.join("cpp", targetname + "Dict.lock")), "a")
+    try:
+        if fcntl is not None:
+            fcntl.flock(lockf, fcntl.LOCK_EX)
+        popen = subprocess.Popen(
+            ["make", targetname + "Dict" + soext],
+            cwd=str(currpath),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+        stdout, _ = popen.communicate()
+    finally:
+        lockf.close()
     if popen.returncode:
         raise OSError("'make' failed:\n%s" % (stdout,))
 
@@ -42,6 +75,8 @@ if "win32" in sys.platform:
         maxvalue = 2**31 - 1
     else:
         IS_WINDOWS = 32
+
+soext = ".dll" if IS_WINDOWS else ".so"
 
 IS_MAC_ARM = 0
 IS_MAC_X86 = 0
@@ -102,6 +137,32 @@ IS_CPP23 = (
                                             #endif\n""")
     == 1
 )
+
+
+def _jit_resolves_std_filesystem():
+    # The JIT resolves std::filesystem against the loaded libstdc++.so, not
+    # the compile headers -- a manylinux image (gcc-toolset headers over a
+    # GCC-8 base runtime) compiles the include yet dies resolving the
+    # symbols. That failure is a fatal JIT error, so ask in a child process.
+    probe = (
+        "import cppjit\n"
+        'cppjit.cppdef("""#include <filesystem>\n'
+        "unsigned long fs_probe() { return std::filesystem::temp_directory_path().string().size(); }\n"
+        '""")\n'
+        "assert cppjit.gbl.fs_probe() > 0\n"
+    )
+    try:
+        return (
+            subprocess.run(
+                [sys.executable, "-c", probe], capture_output=True, timeout=300
+            ).returncode
+            == 0
+        )
+    except subprocess.TimeoutExpired:
+        return False
+
+
+CAN_JIT_STD_FILESYSTEM = _jit_resolves_std_filesystem()
 IS_VALGRIND = True if os.getenv("IS_VALGRIND") else False
 IS_CUDA = os.getenv("CPPJIT_ENABLE_CUDA", "0") not in ("", "0")
 # the interpreter's optimization level; 0 (or an unparsable value) is -O0

@@ -1,16 +1,18 @@
-name: CI
+name: Test
 
 on:
   push:
-    branches: [master, main]
+    branches: [main]
   pull_request:
+    paths-ignore:
+      - 'README.md'
 
 permissions:
   contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  # PR-only: don't cancel an in-flight push validation on master.
+  # PR-only: don't cancel an in-flight push validation on main.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -18,17 +20,24 @@ jobs:
     name: ${{ matrix.os }}/llvm${{ matrix.llvm }}/py${{ matrix.py }}/c++${{ matrix.cxx }}${{ matrix.vg && '/vg' || '' }}${{ matrix.flavor == 'cling' && '/cling' || '' }}
     strategy:
       fail-fast: false
-      # Mirrors CppInterOp's cppyy PR cells: clang-repl on the same OS/arch/LLVM
-      # /valgrind combos at Python 3.14, plus a cling cell and a C++23 cell
-      # (test_cpp23features runs only there). Breadth (3.12/3.13, C++17, LLVM
-      # 20, arm) lives in nightly.
+      # LLVM 22 is the primary target: every supported Python on ubuntu and
+      # macOS, a C++23 cell (test_cpp23features runs only there), a valgrind
+      # cell, and a cling cell. Linux uses the llvm-release recipe (apt-llvm.org
+      # can't supply the >=22 OOP-JIT runtime for flavor=system); macOS uses
+      # brew llvm@22. When CppInterOp supports LLVM 23 these cells move to 23.
+      # Remaining breadth (C++17, LLVM 20, arm) lives in nightly.
       matrix:
         include:
-          - { os: ubuntu-24.04,   llvm: '21', flavor: system, py: '3.14', cxx: '20', vg: true }
+          - { os: ubuntu-24.04,   llvm: '22', flavor: '',     py: '3.14', cxx: '20', vg: true }
           - { os: ubuntu-24.04,   llvm: '22', flavor: '',     py: '3.14', cxx: '20' }
           - { os: ubuntu-24.04,   llvm: '22', flavor: '',     py: '3.14', cxx: '23' }
-          - { os: macos-26,       llvm: '21', flavor: system, py: '3.14', cxx: '20' }
-          - { os: macos-26-intel, llvm: '21', flavor: system, py: '3.14', cxx: '20' }
+          - { os: ubuntu-24.04,   llvm: '22', flavor: '',     py: '3.13', cxx: '20' }
+          - { os: ubuntu-24.04,   llvm: '22', flavor: '',     py: '3.12', cxx: '20' }
+          - { os: macos-26,       llvm: '22', flavor: system, py: '3.14', cxx: '20' }
+          - { os: macos-26,       llvm: '22', flavor: '',     py: '3.13', cxx: '20' }
+          - { os: macos-26,       llvm: '22', flavor: system, py: '3.12', cxx: '20' }
+          - { os: macos-26-intel, llvm: '22', flavor: system, py: '3.14', cxx: '20' }
+          - { os: macos-26-intel, llvm: '22', flavor: '',     py: '3.12', cxx: '20' }
           # cling backend, against the cached llvm-root (cling-llvm22) recipe cell.
           - { os: ubuntu-24.04,   llvm: '22', flavor: cling,  flavor_version: cling-llvm22, py: '3.14', cxx: '20' }
     uses: compiler-research/ci-workflows/.github/workflows/cppjit.yml@main
@@ -45,6 +54,42 @@ jobs:
       cxx-standard: ${{ matrix.cxx }}
       valgrind: ${{ matrix.vg || false }}
       run-xfail-crashing-tests: true
+
+  # Each developer flow -- the pinned default and the CPPINTEROP_SOURCE_DIR and
+  # CppInterOp_DIR overrides -- must configure a persistent build directory
+  # twice without failing. A failed find_package caches <pkg>_DIR as -NOTFOUND,
+  # and the reconfigure reads that as unset and searches again.
+  reconfigure:
+    name: reconfigure/ubuntu-24.04/llvm22
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - uses: compiler-research/ci-workflows/actions/setup-llvm@main
+        with:
+          version: '22'
+          os: ubuntu-24.04
+      - name: Prepare a CppInterOp for the override flows
+        run: |
+          pin=$(sed -n 's/.*CPPINTEROP_GIT_TAG "\([0-9a-f]*\)".*/\1/p' CMakeLists.txt)
+          git clone https://github.com/compiler-research/CppInterOp.git "$RUNNER_TEMP/cppinterop"
+          git -C "$RUNNER_TEMP/cppinterop" checkout "$pin"
+          # Configure only, so CppInterOp_DIR resolves to a package config.
+          cmake -S "$RUNNER_TEMP/cppinterop" -B "$RUNNER_TEMP/cppinterop-build" \
+            -DLLVM_DIR="$LLVM_DIR" -DClang_DIR="$Clang_DIR" -DBUILD_SHARED_LIBS=ON
+      - name: Configure each developer flow twice
+        run: |
+          # Default: CppInterOp pinned and fetched into the build tree.
+          cmake -S . -B build-default -DLLVM_DIR="$LLVM_DIR"
+          cmake -S . -B build-default -DLLVM_DIR="$LLVM_DIR"
+          # Override: a local CppInterOp source checkout.
+          cmake -S . -B build-source -DLLVM_DIR="$LLVM_DIR" -DCPPINTEROP_SOURCE_DIR="$RUNNER_TEMP/cppinterop"
+          cmake -S . -B build-source -DLLVM_DIR="$LLVM_DIR" -DCPPINTEROP_SOURCE_DIR="$RUNNER_TEMP/cppinterop"
+          # Override: an existing CppInterOp build.
+          cmake -S . -B build-external -DLLVM_DIR="$LLVM_DIR" -DCppInterOp_DIR="$RUNNER_TEMP/cppinterop-build/lib/cmake/CppInterOp"
+          cmake -S . -B build-external -DLLVM_DIR="$LLVM_DIR" -DCppInterOp_DIR="$RUNNER_TEMP/cppinterop-build/lib/cmake/CppInterOp"
 
   report:
     if: ${{ always() && github.event_name == 'pull_request' }}

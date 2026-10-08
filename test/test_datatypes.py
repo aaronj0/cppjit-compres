@@ -21,10 +21,11 @@ class TestDATATYPES:
         cls.N = 5  # cppjit.gbl.N
 
     @mark.xfail(
-        condition=IS_CPP23,
+        condition=IS_CPP23 and not IS_MAC,
         reason="since C++23 (P1467) the narrowing std::complex<double> to "
         "complex<float> constructor is explicit, breaking the implicit "
-        "conversion of Python complex arguments",
+        "conversion of Python complex arguments; libc++ does not implement "
+        "P1467 yet, so the conversion still succeeds on macOS",
     )
     def test01_instance_data_read_access(self):
         """Read access to instance public data and verify values"""
@@ -687,7 +688,6 @@ class TestDATATYPES:
 
         c.__destruct__()
 
-    @mark.xfail(condition=IS_MAC, reason="Fails on OS X")
     def test08_global_builtin_type(self):
         """Test access to a global builtin type"""
 
@@ -1302,6 +1302,58 @@ class TestDATATYPES:
             for i in range(self.N):
                 assert arr[i] == l[i]
 
+        # a fixed-size array accepts only its own shape, and stays intact
+        arr = c.m_int_array
+        assert arr.shape == (self.N,)
+        arr.reshape((self.N,))
+        arr.shape = (self.N,)
+        assert arr.shape == (self.N,)
+        assert list(arr) == list(c.m_int_array)
+
+        # (2, 3) was accepted when sizes were compared as sums (2 + 3 == N)
+        raises(ValueError, arr.reshape, (2, 3))
+        raises(ValueError, arr.reshape, (self.N + 1,))
+        raises(ValueError, arr.reshape, (-1,))
+        assert arr.shape == (self.N,)
+        assert list(arr) == list(c.m_int_array)
+
+        # shapes that do not describe an array (-1 means "unknown" and is fine)
+        arr = c.get_int_array()
+        raises(ValueError, arr.reshape, ())
+        raises(ValueError, arr.reshape, (-2,))
+        raises(ValueError, arr.reshape, (sys.maxsize,))
+        raises(TypeError, arr.reshape, (1.5, 2))
+
+        # sizing to (0,) does not fix the size of an unknown view, others do
+        arr = c.get_int_array()
+        arr.reshape((-1,))
+        assert arr.shape[0] > 0
+        assert len(arr) == arr.shape[0]
+        arr.reshape((0,))
+        assert len(arr) == 0
+        assert list(arr) == []
+        arr.shape = (self.N,)
+        assert arr.shape == (self.N,)
+        assert len(list(arr)) == self.N
+        with raises(ValueError):
+            arr.shape = (2 * self.N,)
+        with raises(TypeError):
+            del arr.shape
+        assert arr.shape == (self.N,)
+
+        # a flexible array member is of unknown size whatever its type; sizing
+        # it counts bytes in element strides, not the (overridden) itemsize
+        cppjit.cppdef("""\
+        namespace ReshapeFlex {
+        struct Names { int n; const char* names[]; };
+        }""")
+
+        names = cppjit.gbl.ReshapeFlex.Names()
+        arr = names.names
+        arr.reshape((3,))
+        assert arr.shape == (3,)
+        assert memoryview(arr).nbytes == 3 * memoryview(arr).strides[0]
+
     def test24_voidp(self):
         """Test usage of void* data"""
 
@@ -1409,7 +1461,7 @@ class TestDATATYPES:
         run(self, cppjit.gbl.sum_uc_data, buf, total)
         run(self, cppjit.gbl.sum_byte_data, buf, total)
 
-    @mark.xfail(run=False, condition=IS_MAC, reason="Crashes on OSX")
+    @mark.xfail(condition=IS_MAC, run=False, reason="Crashes on OSX")
     def test26_function_pointers(self):
         """Function pointer passing"""
 
@@ -1474,7 +1526,7 @@ class TestDATATYPES:
         ns = cppjit.gbl.FuncPtrReturn
         assert ns.foo()() == "Hello, World!"
 
-    @mark.xfail(run=False, condition=IS_MAC, reason="Crashes")
+    @mark.xfail(condition=IS_MAC, run=False, reason="Crashes")
     def test27_callable_passing(self):
         """Passing callables through function pointers"""
 
@@ -1553,7 +1605,7 @@ class TestDATATYPES:
         gc.collect()
         raises(TypeError, c, 3, 3)  # lambda gone out of scope
 
-    @mark.xfail(run=False, condition=IS_MAC, reason="Crashes on MacOS")
+    @mark.xfail(condition=IS_MAC, run=False, reason="Crashes on MacOS")
     def test28_callable_through_function_passing(self):
         """Passing callables through std::function"""
 
@@ -1632,7 +1684,6 @@ class TestDATATYPES:
         gc.collect()
         raises(TypeError, c, 3, 3)  # lambda gone out of scope
 
-    @mark.xfail(condition=IS_MAC, reason="Fails on OS X")
     def test29_std_function_life_lines(self):
         """Life lines to std::function data members"""
 
@@ -1914,7 +1965,6 @@ class TestDATATYPES:
         assert c.s_strp == "noot"
         assert sn == "noot"  # set through pointer
 
-    @mark.xfail(condition=IS_MAC, reason="Fails on OSX")
     def test35_restrict(self):
         """Strip __restrict keyword from use"""
 
@@ -2552,6 +2602,22 @@ class TestDATATYPES:
         )
         assert len(cls_Ebool0.__dict__["_member_names_"]) == 2
 
+    def test51a_enum_longlong_values(self):
+        """64-bit and negative enumerator values round-trip exactly"""
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        enum class EWide : long long {
+            kNeg  = -1,
+            kMin  = -9223372036854775807LL - 1,
+            kMax  = 9223372036854775807LL,
+        };""")
+
+        assert int(cppjit.gbl.EWide.kNeg) == -1
+        assert int(cppjit.gbl.EWide.kMin) == -9223372036854775808
+        assert int(cppjit.gbl.EWide.kMax) == 9223372036854775807
+
     def test52_8bit_goodness(self):
         import cppjit
 
@@ -2585,6 +2651,36 @@ class TestDATATYPES:
         assert ns52.teui8p1 == ns52.Teui8.P1
         pteui8p2 = ns52.Teui8.P2
         assert pteui8p2 == ns52.Teui8.P2
+
+    def test52a_fixed_width_integers(self):
+        """int16/uint16/int32/uint32 members and arrays round-trip"""
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        #include <cstdint>
+        struct FixedWidths {
+            int16_t  i16 = -12345;
+            uint16_t u16 = 54321;
+            int32_t  i32 = -1234567890;
+            uint32_t u32 = 3234567890u;
+            int16_t  a16[3] = {-1, 0, 1};
+            uint32_t a32[3] = {1u, 2u, 4294967295u};
+        };""")
+
+        o = cppjit.gbl.FixedWidths()
+        assert o.i16 == -12345
+        assert o.u16 == 54321
+        assert o.i32 == -1234567890
+        assert o.u32 == 3234567890
+        o.i16 = -32768
+        o.u16 = 65535
+        assert o.i16 == -32768
+        assert o.u16 == 65535
+        assert list(o.a16) == [-1, 0, 1]
+        assert list(o.a32) == [1, 2, 4294967295]
+        o.a16[1] = 7
+        assert o.a16[1] == 7
 
     def test53_basic_nanoseconds_goodness(self):
         import cppjit
@@ -2686,3 +2782,21 @@ class TestDATATYPES:
         ns.take_schar("e")
         ns.take_int8(101)
         raises(TypeError, ns.take_int8, "e")
+
+
+class TestANONENUM:
+    def test01_anonymous_enum_repeated_access(self):
+        """An anonymous-enum constant keeps its value across accesses"""
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        namespace AnonEnum { struct Holder { enum { kAnon = 42 }; }; }""")
+
+        h = cppjit.gbl.AnonEnum.Holder()
+
+        # the value is computed on the first access and cached; without the
+        # cache later accesses fall through to the data-member converter
+        assert h.kAnon == 42
+        assert h.kAnon == 42
+        assert h.kAnon == 42

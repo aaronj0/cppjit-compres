@@ -61,13 +61,14 @@ class TestLOWLEVEL:
         """Memory allocation and free-ing"""
 
         import cppjit
+        from cppjit import ll
 
         # regular C malloc/free
         mem = cppjit.gbl.malloc(16)
         cppjit.gbl.free(mem)
 
         # typed styles
-        mem = cppjit.ll.malloc[int](self.N)
+        mem = ll.malloc[int](self.N)
         assert len(mem) == self.N
         assert not mem.__cpp_array__
         for i in range(self.N):
@@ -171,8 +172,8 @@ class TestLOWLEVEL:
         assert f[0] == -5.0
 
     @mark.xfail(
-        run=False,
         condition=IS_VALGRIND or IS_CLING,
+        run=False,
         reason="Valgrind detects memory leak with invalid delete[] operator, crashes on Cling",
     )
     def test06_ctypes_as_ref_and_ptr(self):
@@ -501,7 +502,7 @@ class TestLOWLEVEL:
         x = np.array([True], dtype=bool)
         assert cppjit.gbl.convert_bool(x)
 
-    @mark.xfail(run=False, condition=IS_MAC, reason="Crashes on OSX")
+    @mark.xfail(condition=IS_MAC, run=False, reason="Crashes on OSX")
     def test10_array_of_const_char_star(self):
         """Test passting of const char*[]"""
 
@@ -668,7 +669,7 @@ class TestLOWLEVEL:
         try:
             cppjit.include("gmpxx.h")
             cppjit.load_library("gmpxx")
-        except ImportError:
+        except (ImportError, RuntimeError):
             skip("gmpxx not installed")
 
         assert cppjit.gbl.std.vector[cppjit.gbl.mpz_class].value_type
@@ -865,6 +866,7 @@ class TestMULTIDIMARRAYS:
         data2c = self._data_m("2c")
         for m, tp in data2c:
             arr = getattr(h, m)
+            arr.reshape((3, 5))  # its own shape, the only one it accepts
             assert arr.shape == (3, 5)
             elem_tp = getattr(cppjit.gbl, tp)
             for i in range(3):
@@ -1100,3 +1102,216 @@ class TestMULTIDIMARRAYS:
             for j in range(gbl.S + 3):
                 for k in range(gbl.S + 7):
                     assert gbl.consume_klass(gbl.klasses[i][j][k], i, j, k)
+
+    def test08_reshape_sets_unknown_dimensions_only(self):
+        """Reshaping fills in the dimensions the type leaves open"""
+
+        import cppjit
+        import cppjit.ll
+
+        h = cppjit.gbl.MultiDimArrays.DataHolder()
+
+        # a fixed-size array accepts only its own shape, and that must leave
+        # its strides intact (a plain reshape used to corrupt them)
+        arr = h.m_int2c
+        assert arr.shape == (3, 5)
+        strides = memoryview(arr).strides
+        arr.reshape((3, 5))
+        assert arr.shape == (3, 5)
+        assert memoryview(arr).strides == strides
+        for i in range(3):
+            for j in range(5):
+                assert arr[i][j] == 3 * i + j
+                assert arr[i, j] == 3 * i + j
+
+        raises(ValueError, arr.reshape, (5, 3))
+        raises(ValueError, arr.reshape, (15,))
+        assert arr.shape == (3, 5)
+        assert arr[2][4] == 3 * 2 + 4
+
+        # unknown dimensions can be set one at a time and, once set, stay
+        arr = h.m_int2a
+        assert len(arr.shape) == 2
+        assert arr.shape[1] == -1
+        raises(ValueError, arr.reshape, (35,))
+        arr.reshape((5, -1))
+        assert arr.shape[0] == 5 and arr.shape[1] == -1
+        raises(ValueError, arr.reshape, (7, -1))
+        arr.reshape((5, 7))
+        assert arr.shape == (5, 7)
+        for i in range(5):
+            for j in range(7):
+                assert arr[i][j] == h.m_int2a[i, j]
+
+        # a rank-1 pointer view cannot become multi-dimensional either
+        buf = cppjit.ll.malloc["int"](6)
+        assert buf.shape == (6,)
+        raises(ValueError, buf.reshape, (2, 3))
+        assert buf.shape == (6,)
+        cppjit.ll.free(buf)
+
+        # a dimension that would overflow the byte size is rejected, too; the
+        # outermost one counts row pointers here, not ints (used to slip by)
+        arr = cppjit.gbl.MultiDimArrays.DataHolder().m_int2a
+        raises(ValueError, arr.reshape, (5, sys.maxsize))
+        raises(ValueError, arr.reshape, (sys.maxsize // 4 - 1, -1))
+
+        # a freshly constructed view has no dimensions to set
+        v = cppjit._backend.LowLevelView()
+        raises(TypeError, v.reshape, ())
+
+
+class TestBINDVALUE:
+    def _buffer_of(self, ctype, *values):
+        import ctypes
+
+        buf = (ctype * len(values))(*values)
+        return buf, ctypes.addressof(buf)
+
+    def test01_scalar(self):
+        """A builtin type yields the stored Python value"""
+
+        import ctypes
+
+        from cppjit import ll
+
+        buf, addr = self._buffer_of(ctypes.c_double, 3.5)
+        v = ll.bind_value("double", addr)
+        assert isinstance(v, float)
+        assert v == 3.5
+
+        ibuf, iaddr = self._buffer_of(ctypes.c_int32, -7)
+        assert ll.bind_value("int", iaddr) == -7
+
+    def test02_class(self):
+        """A class type yields a bound proxy for the same object
+
+        The object comes from C++ so the test does not depend on the
+        platform's set of std::string constructors (libc++ vs libstdc++).
+        """
+
+        import cppjit
+        from cppjit import ll
+
+        cppjit.cppdef("""
+        std::string bind_value_make_string() { return "hello"; }
+        """)
+        s = cppjit.gbl.bind_value_make_string()
+        ps = ll.bind_value("std::string", cppjit.addressof(s))
+        assert type(ps) is type(s)
+        assert ps == "hello"
+
+    def test03_array_with_dims(self):
+        """'T[]' with dims yields a shaped LowLevelView over the data"""
+
+        import ctypes
+
+        from cppjit import ll
+
+        buf, addr = self._buffer_of(ctypes.c_double, *[float(i) for i in range(6)])
+
+        flat = ll.bind_value("double[]", addr, (6,))
+        assert flat.shape == (6,)
+        assert flat[4] == 4.0
+
+        matrix = ll.bind_value("double[]", addr, (2, 3))
+        assert matrix.shape == (2, 3)
+        assert matrix[1][2] == 5.0
+
+    def test04_pointer_type_with_dims(self):
+        """'T*' with dims is accepted as an array denotation"""
+
+        import ctypes
+
+        from cppjit import ll
+
+        buf, addr = self._buffer_of(ctypes.c_int, 11, 22, 33)
+        view = ll.bind_value("int*", addr, (3,))
+        assert view.shape == (3,)
+        assert [view[i] for i in range(3)] == [11, 22, 33]
+
+    def test05_unknown_type_raises(self):
+        """An unresolvable type name raises TypeError, not a crash"""
+
+        import ctypes
+
+        from cppjit import ll
+
+        buf, addr = self._buffer_of(ctypes.c_double, 1.0)
+        with raises(TypeError):
+            ll.bind_value("nosuchtype_xyz", addr)
+
+    def test06_dims_require_array_type(self):
+        """dims with a scalar type raise TypeError (scalars ignore dims)"""
+
+        import ctypes
+
+        from cppjit import ll
+
+        buf, addr = self._buffer_of(ctypes.c_double, 1.0, 2.0)
+        with raises(TypeError):
+            ll.bind_value("double", addr, (2,))
+
+    def test07_bad_dims_raise(self):
+        """Empty and negative dims are rejected"""
+
+        import ctypes
+
+        from cppjit import ll
+
+        buf, addr = self._buffer_of(ctypes.c_double, 1.0, 2.0)
+        with raises(ValueError):
+            ll.bind_value("double[]", addr, ())
+        with raises(ValueError):
+            # -1 is the UNKNOWN_SIZE sentinel, which has no meaning here
+            ll.bind_value("double[]", addr, (-1,))
+        with raises(ValueError):
+            ll.bind_value("double[]", addr, (2, -3))
+
+    def test08_cstring_pointer_as_str(self):
+        """'char*' yields a str, like a char*-returning bound function does
+
+        This is the motivating case from the TTree leaf pythonization:
+        the address points at the char* slot, whose target is read as a
+        C string.
+        """
+
+        import ctypes
+
+        from cppjit import ll
+
+        cp = ctypes.c_char_p(b"hello leaf")
+        v = ll.bind_value("char*", ctypes.addressof(cp))
+        assert type(v) is str
+        assert v == "hello leaf"
+
+    def test09_char_array_with_dims(self):
+        """'char[]' with dims yields a view of one-character strings"""
+
+        import ctypes
+
+        from cppjit import ll
+
+        buf = ctypes.create_string_buffer(b"abcd")
+        v = ll.bind_value("char[]", ctypes.addressof(buf), (4,))
+        assert v.shape == (4,)
+        assert [v[i] for i in range(4)] == ["a", "b", "c", "d"]
+
+
+class TestCSTRINGARRAY:
+    def test01_cstring_array_from_str(self):
+        """A Python string can be assigned to a const char** data member"""
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        namespace CStringArray {
+            struct S { const char** names = nullptr; };
+            const char* as_chars(S& s) { return (const char*)s.names; }
+        }""")
+
+        ns = cppjit.gbl.CStringArray
+        s = ns.S()
+
+        s.names = "abc"
+        assert ns.as_chars(s) == "abc"

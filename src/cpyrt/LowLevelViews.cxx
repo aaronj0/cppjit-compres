@@ -35,6 +35,12 @@ static inline void set_strides(Py_buffer& view, size_t itemsize, bool isfix) {
   }
 }
 
+// The creators mark an outermost dimension of unknown extent with this cap
+// rather than with UNKNOWN_SIZE, keeping byte lengths and loops non-negative.
+static inline Py_ssize_t fake_max(size_t elemsize) {
+  return INT_MAX / (Py_ssize_t)elemsize;
+}
+
 //= cpyrt low level view construction/destruction =========================
 static cpyrt::LowLevelView* ll_new(PyTypeObject* subtype, PyObject*,
                                    PyObject*) {
@@ -105,7 +111,7 @@ CPYRT_LL_FLAG_GETSET(cpparray,  cpyrt::LowLevelView::kIsCppArray, __cpp_array__)
 
 //---------------------------------------------------------------------------
 static PyObject* ll_typecode(cpyrt::LowLevelView* self, void*) {
-  return cpyrt_PyText_FromString((char*)self->fBufInfo.format);
+  return PyUnicode_FromString((char*)self->fBufInfo.format);
 }
 
 //- Copy memoryview buffers =================================================
@@ -685,21 +691,50 @@ static PyObject* ll_shape(cpyrt::LowLevelView* self) {
   Py_buffer& view = self->fBufInfo;
 
   PyObject* shape = PyTuple_New(view.ndim);
-  for (Py_ssize_t idim = 0; idim < view.ndim; ++idim)
-    PyTuple_SET_ITEM(shape, idim, PyInt_FromSsize_t(view.shape[idim]));
+  if (!shape)
+    return nullptr;
+  for (Py_ssize_t idim = 0; idim < view.ndim; ++idim) {
+    PyObject* pydim = PyLong_FromSsize_t(view.shape[idim]);
+    if (!pydim) {
+      Py_DECREF(shape);
+      return nullptr;
+    }
+    PyTuple_SET_ITEM(shape, idim, pydim);
+  }
 
   return shape;
 }
 
 //---------------------------------------------------------------------------
+static PyObject* ll_reshape_error(cpyrt::LowLevelView* self, PyObject* shape,
+                                  const char* why) {
+  PyObject* current = ll_shape(self);
+  if (!current)
+    return nullptr;
+  PyErr_Format(PyExc_ValueError,
+               "cannot reshape array of shape %S into shape %S: %s", current,
+               shape, why);
+  Py_DECREF(current);
+  return nullptr;
+}
+
+//---------------------------------------------------------------------------
 static PyObject* ll_reshape(cpyrt::LowLevelView* self, PyObject* shape) {
-  // Allow the user to fix up the actual (type-strided) size of the buffer.
+  // Fill in the dimensions of the buffer that are not known from its type.
+  //
+  // A view is created with the rank and layout of its C++ type: a flat block
+  // for a rank-1 or fixed-size array, an array of row pointers otherwise. The
+  // strides and the converter projecting sub-views are derived from that and
+  // cannot be re-derived from a shape alone, so the rank of a view never
+  // changes and a dimension, once known, stays what it is. What reshaping can
+  // do is provide the extent of a dimension that the type leaves open, such as
+  // the size of an array behind a pointer.
   if (!PyTuple_Check(shape)) {
     if (shape) {
       PyObject* pystr = PyObject_Str(shape);
       if (pystr) {
         PyErr_Format(PyExc_TypeError, "tuple object expected, received %s",
-                     cpyrt_PyText_AsStringChecked(pystr));
+                     PyUnicode_AsUTF8(pystr));
         Py_DECREF(pystr);
         return nullptr;
       }
@@ -709,58 +744,74 @@ static PyObject* ll_reshape(cpyrt::LowLevelView* self, PyObject* shape) {
   }
 
   Py_buffer& view = self->fBufInfo;
-
-  // verify size match
-  Py_ssize_t oldsz = 0;
-  for (Py_ssize_t idim = 0; idim < view.ndim; ++idim) {
-    Py_ssize_t nlen = view.shape[idim];
-    if (nlen == cpyrt::UNKNOWN_SIZE ||
-        nlen == INT_MAX / view.itemsize /* fake 'max' */) {
-      oldsz = -1; // meaning, unable to check size match
-      break;
-    }
-    oldsz += view.shape[idim];
+  if (view.ndim < 1 || !view.shape || !view.strides) {
+    PyErr_SetString(PyExc_TypeError,
+                    "this low level view has no dimensions to set");
+    return nullptr;
   }
 
-  if (0 < oldsz) {
-    Py_ssize_t newsz = 0;
-    for (Py_ssize_t idim = 0; idim < PyTuple_GET_SIZE(shape); ++idim)
-      newsz += PyInt_AsSsize_t(PyTuple_GET_ITEM(shape, idim));
-    if (oldsz != newsz) {
-      PyObject* tas = PyObject_Str(shape);
-      PyErr_Format(PyExc_ValueError,
-                   "cannot reshape array of size %ld into shape %s",
-                   (long)oldsz, cpyrt_PyText_AsString(tas));
-      Py_DECREF(tas);
-      return nullptr;
-    }
-  }
+  // An unknown outermost dimension holds the fake max for the element size
+  // (the innermost stride), any other unknown dimension UNKNOWN_SIZE. An
+  // empty dimension of a non-fixed view may also be filled in: it came from
+  // a pointer, with nothing behind it yet that a size could contradict.
+  bool isfix = (intptr_t)view.internal & cpyrt::LowLevelView::kIsFixed;
+  Py_ssize_t elemsize = view.strides[view.ndim - 1];
+  Py_ssize_t fakemax = fake_max(elemsize);
+  Py_ssize_t unit0 = view.ndim == 1 ? elemsize : view.itemsize;
 
-  // reshape
-  size_t itemsize = view.strides[view.ndim - 1];
-  if (view.ndim != PyTuple_GET_SIZE(shape)) {
-    PyMem_Free(view.shape);
-    PyMem_Free(view.strides);
-
-    view.ndim = (int)PyTuple_GET_SIZE(shape);
-    view.shape = (Py_ssize_t*)PyMem_Malloc(view.ndim * sizeof(Py_ssize_t));
-    view.strides = (Py_ssize_t*)PyMem_Malloc(view.ndim * sizeof(Py_ssize_t));
-  }
-
-  for (Py_ssize_t idim = 0; idim < PyTuple_GET_SIZE(shape); ++idim) {
-    Py_ssize_t nlen = PyInt_AsSsize_t(PyTuple_GET_ITEM(shape, idim));
+  Py_ssize_t ndim = PyTuple_GET_SIZE(shape);
+  cpyrt::dims_t dims(ndim);
+  for (Py_ssize_t idim = 0; idim < ndim; ++idim) {
+    Py_ssize_t nlen = PyLong_AsSsize_t(PyTuple_GET_ITEM(shape, idim));
     if (nlen == -1 && PyErr_Occurred())
       return nullptr;
-
-    if (idim == 0)
-      view.len = nlen * view.itemsize;
-
-    view.shape[idim] = nlen;
+    if (nlen < cpyrt::UNKNOWN_SIZE) {
+      PyErr_SetString(PyExc_ValueError, "negative dimensions are not allowed");
+      return nullptr;
+    }
+    if (nlen == cpyrt::UNKNOWN_SIZE) // store as the creators would
+      nlen = idim == 0 ? fakemax : cpyrt::UNKNOWN_SIZE;
+    else if (PY_SSIZE_T_MAX / (idim == 0 ? unit0 : elemsize) < nlen)
+      return ll_reshape_error(self, shape, "the shape is too large");
+    dims[idim] = nlen;
   }
 
-  set_strides(view, itemsize, false /* by definition not fixed */);
+  if (ndim != view.ndim)
+    return ll_reshape_error(
+        self, shape,
+        "the number of dimensions of a low level view is fixed by its type");
+
+  for (Py_ssize_t idim = 0; idim < ndim; ++idim) {
+    Py_ssize_t cur = view.shape[idim];
+    bool unknown = cur == cpyrt::UNKNOWN_SIZE ||
+                   (idim == 0 && cur == fakemax) || (cur == 0 && !isfix);
+    if (!unknown && dims[idim] != cur)
+      return ll_reshape_error(self, shape,
+                              "only dimensions of unknown size can be set");
+  }
+
+  for (Py_ssize_t idim = 0; idim < ndim; ++idim)
+    view.shape[idim] = dims[idim];
+
+  // the byte length counts the outermost dimension as the creators set it;
+  // the strides depend only on the layout and stay as they were laid down
+  view.len = dims[0] * unit0;
 
   Py_RETURN_NONE;
+}
+
+//---------------------------------------------------------------------------
+static int ll_setshape(cpyrt::LowLevelView* self, PyObject* value, void*) {
+  if (!value) {
+    PyErr_SetString(PyExc_TypeError, "cannot delete the shape of a view");
+    return -1;
+  }
+
+  PyObject* result = ll_reshape(self, value);
+  if (!result)
+    return -1;
+  Py_DECREF(result);
+  return 0;
 }
 
 //---------------------------------------------------------------------------
@@ -842,7 +893,7 @@ static PyObject* ll_as_string(cpyrt::LowLevelView* self) {
 
   char* buf = (char*)self->get_buf();
   size_t sz = strnlen(buf, (size_t)view.shape[0]);
-  return cpyrt_PyText_FromStringAndSize(buf, sz);
+  return PyUnicode_FromStringAndSize(buf, sz);
 }
 
 //---------------------------------------------------------------------------
@@ -864,63 +915,63 @@ static PyGetSetDef ll_getset[] = {
      (char*)"If true, this array was allocated with C++\'s new[]", nullptr},
     {(char*)"format", (getter)ll_typecode, nullptr, nullptr, nullptr},
     {(char*)"typecode", (getter)ll_typecode, nullptr, nullptr, nullptr},
-    {(char*)"shape", (getter)ll_shape, (setter)ll_reshape, nullptr, nullptr},
+    {(char*)"shape", (getter)ll_shape, (setter)ll_setshape, nullptr, nullptr},
     {(char*)nullptr, nullptr, nullptr, nullptr, nullptr}};
 
 namespace cppjit::cpyrt {
 
 //= cpyrt low level view type ============================================
-PyTypeObject LowLevelView_Type = {PyVarObject_HEAD_INIT(&PyType_Type, 0)(
-                                      char*) "cppjit.LowLevelView", // tp_name
-                                  sizeof(cpyrt::LowLevelView), // tp_basicsize
-                                  0,                           // tp_itemsize
-                                  (destructor)ll_dealloc,      // tp_dealloc
-                                  0, // tp_vectorcall_offset / tp_print
-                                  0, // tp_getattr
-                                  0, // tp_setattr
-                                  0, // itp_as_async / tp_compare
-                                  0, // tp_repr
-                                  0, // tp_as_number
-                                  &ll_as_sequence, // tp_as_sequence
-                                  &ll_as_mapping,  // tp_as_mapping
-                                  0,               // tp_hash
-                                  0,               // tp_call
-                                  0,               // tp_str
-                                  0,               // tp_getattro
-                                  0,               // tp_setattro
-                                  &ll_as_buffer,   // tp_as_buffer
-                                  Py_TPFLAGS_DEFAULT | Py_TPFLAGS_CHECKTYPES |
-                                      Py_TPFLAGS_BASETYPE, // tp_flags
-                                  (char*)"memory view on C++ pointer", // tp_doc
-                                  0,                    // tp_traverse
-                                  0,                    // tp_clear
-                                  0,                    // tp_richcompare
-                                  0,                    // tp_weaklistoffset
-                                  (getiterfunc)ll_iter, // tp_iter
-                                  0,                    // tp_iternext
-                                  ll_methods,           // tp_methods
-                                  0,                    // tp_members
-                                  ll_getset,            // tp_getset
-                                  0,                    // tp_base
-                                  0,                    // tp_dict
-                                  0,                    // tp_descr_get
-                                  0,                    // tp_descr_set
-                                  0,                    // tp_dictoffset
-                                  0,                    // tp_init
-                                  0,                    // tp_alloc
-                                  (newfunc)ll_new,      // tp_new
-                                  0,                    // tp_free
-                                  0,                    // tp_is_gc
-                                  0,                    // tp_bases
-                                  0,                    // tp_mro
-                                  0,                    // tp_cache
-                                  0,                    // tp_subclasses
-                                  0,                    // tp_weaklist
-                                  0,                    // tp_del
-                                  0,                    // tp_version_tag
-                                  0,                    // tp_finalize
-                                  0                     // tp_vectorcall
-                                  CPYRT_PYTYPE_TAIL};
+PyTypeObject LowLevelView_Type = {
+    PyVarObject_HEAD_INIT(&PyType_Type,
+                          0)(char*) "cppjit.LowLevelView", // tp_name
+    sizeof(cpyrt::LowLevelView),                           // tp_basicsize
+    0,                                                     // tp_itemsize
+    (destructor)ll_dealloc,                                // tp_dealloc
+    0,                                        // tp_vectorcall_offset / tp_print
+    0,                                        // tp_getattr
+    0,                                        // tp_setattr
+    0,                                        // itp_as_async / tp_compare
+    0,                                        // tp_repr
+    0,                                        // tp_as_number
+    &ll_as_sequence,                          // tp_as_sequence
+    &ll_as_mapping,                           // tp_as_mapping
+    0,                                        // tp_hash
+    0,                                        // tp_call
+    0,                                        // tp_str
+    0,                                        // tp_getattro
+    0,                                        // tp_setattro
+    &ll_as_buffer,                            // tp_as_buffer
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, // tp_flags
+    (char*)"memory view on C++ pointer",      // tp_doc
+    0,                                        // tp_traverse
+    0,                                        // tp_clear
+    0,                                        // tp_richcompare
+    0,                                        // tp_weaklistoffset
+    (getiterfunc)ll_iter,                     // tp_iter
+    0,                                        // tp_iternext
+    ll_methods,                               // tp_methods
+    0,                                        // tp_members
+    ll_getset,                                // tp_getset
+    0,                                        // tp_base
+    0,                                        // tp_dict
+    0,                                        // tp_descr_get
+    0,                                        // tp_descr_set
+    0,                                        // tp_dictoffset
+    0,                                        // tp_init
+    0,                                        // tp_alloc
+    (newfunc)ll_new,                          // tp_new
+    0,                                        // tp_free
+    0,                                        // tp_is_gc
+    0,                                        // tp_bases
+    0,                                        // tp_mro
+    0,                                        // tp_cache
+    0,                                        // tp_subclasses
+    0,                                        // tp_weaklist
+    0,                                        // tp_del
+    0,                                        // tp_version_tag
+    0,                                        // tp_finalize
+    0                                         // tp_vectorcall
+    CPYRT_PYTYPE_TAIL};
 
 } // namespace cppjit::cpyrt
 
@@ -1038,9 +1089,9 @@ CreateLowLevelViewT(T* address, cpyrt::cdims_t shape,
                     Py_ssize_t itemsize = -1) {
   using namespace cppjit::cpyrt;
   Py_ssize_t nx =
-      (shape.ndim() != UNKNOWN_SIZE) ? shape[0] : INT_MAX / sizeof(T);
+      (shape.ndim() != UNKNOWN_SIZE) ? shape[0] : fake_max(sizeof(T));
   if (nx == UNKNOWN_SIZE)
-    nx = INT_MAX / sizeof(T);
+    nx = fake_max(sizeof(T));
   PyObject* args = PyTuple_New(0);
   LowLevelView* llp = (LowLevelView*)LowLevelView_Type.tp_new(
       &LowLevelView_Type, args, nullptr);
@@ -1181,6 +1232,54 @@ PyObject* cpyrt::CreateLowLevelView_i8(uint8_t** address, cdims_t shape) {
   LowLevelView* ll =
       CreateLowLevelViewT<uint8_t>(address, shape, "B", "uint8_t");
   CPPJIT_RET_W_CREATOR(uint8_t**, CreateLowLevelView_i8);
+}
+
+PyObject* cpyrt::CreateLowLevelView_i16(int16_t* address, cdims_t shape) {
+  LowLevelView* ll =
+      CreateLowLevelViewT<int16_t>(address, shape, "h", "int16_t");
+  CPPJIT_RET_W_CREATOR(int16_t*, CreateLowLevelView_i16);
+}
+
+PyObject* cpyrt::CreateLowLevelView_i16(int16_t** address, cdims_t shape) {
+  LowLevelView* ll =
+      CreateLowLevelViewT<int16_t>(address, shape, "h", "int16_t");
+  CPPJIT_RET_W_CREATOR(int16_t**, CreateLowLevelView_i16);
+}
+
+PyObject* cpyrt::CreateLowLevelView_i16(uint16_t* address, cdims_t shape) {
+  LowLevelView* ll =
+      CreateLowLevelViewT<uint16_t>(address, shape, "H", "uint16_t");
+  CPPJIT_RET_W_CREATOR(uint16_t*, CreateLowLevelView_i16);
+}
+
+PyObject* cpyrt::CreateLowLevelView_i16(uint16_t** address, cdims_t shape) {
+  LowLevelView* ll =
+      CreateLowLevelViewT<uint16_t>(address, shape, "H", "uint16_t");
+  CPPJIT_RET_W_CREATOR(uint16_t**, CreateLowLevelView_i16);
+}
+
+PyObject* cpyrt::CreateLowLevelView_i32(int32_t* address, cdims_t shape) {
+  LowLevelView* ll =
+      CreateLowLevelViewT<int32_t>(address, shape, "i", "int32_t");
+  CPPJIT_RET_W_CREATOR(int32_t*, CreateLowLevelView_i32);
+}
+
+PyObject* cpyrt::CreateLowLevelView_i32(int32_t** address, cdims_t shape) {
+  LowLevelView* ll =
+      CreateLowLevelViewT<int32_t>(address, shape, "i", "int32_t");
+  CPPJIT_RET_W_CREATOR(int32_t**, CreateLowLevelView_i32);
+}
+
+PyObject* cpyrt::CreateLowLevelView_i32(uint32_t* address, cdims_t shape) {
+  LowLevelView* ll =
+      CreateLowLevelViewT<uint32_t>(address, shape, "I", "uint32_t");
+  CPPJIT_RET_W_CREATOR(uint32_t*, CreateLowLevelView_i32);
+}
+
+PyObject* cpyrt::CreateLowLevelView_i32(uint32_t** address, cdims_t shape) {
+  LowLevelView* ll =
+      CreateLowLevelViewT<uint32_t>(address, shape, "I", "uint32_t");
+  CPPJIT_RET_W_CREATOR(uint32_t**, CreateLowLevelView_i32);
 }
 
 PyObject* cpyrt::CreateLowLevelViewFromTypestr(void* ptr, const char* typestr,

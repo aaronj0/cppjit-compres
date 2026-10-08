@@ -9,7 +9,6 @@ using namespace cppjit;
 #include "Executors.h"
 #include "ProxyWrappers.h"
 #include "PyStrings.h"
-#include "SignalTryCatch.h"
 #include "TypeManip.h"
 #include "Utility.h"
 #include "cppjit_interop.h"
@@ -20,7 +19,6 @@ using namespace cppjit;
 #include <algorithm>
 #include <assert.h>
 #include <exception>
-#include <iostream>
 #include <memory>
 #include <sstream>
 #include <string.h>
@@ -66,11 +64,11 @@ inline bool cpyrt::CPPMethod::VerifyArgCount_(Py_ssize_t actual) {
 
   if (maxargs != actual) {
     if (actual < (Py_ssize_t)fArgsRequired) {
-      SetPyError_(cpyrt_PyText_FromFormat(
+      SetPyError_(PyUnicode_FromFormat(
           "takes at least %d arguments (%zd given)", fArgsRequired, actual));
       return false;
     } else if (maxargs < actual) {
-      SetPyError_(cpyrt_PyText_FromFormat(
+      SetPyError_(PyUnicode_FromFormat(
           "takes at most %zd arguments (%zd given)", maxargs, actual));
       return false;
     }
@@ -83,6 +81,7 @@ inline void cpyrt::CPPMethod::Copy_(const CPPMethod& /* other */) {
   // fScope and fMethod handled separately
 
   // do not copy caches
+  fDeclaringScope = nullptr;
   fExecutor = nullptr;
   fArgIndices = nullptr;
   fArgsRequired = -1;
@@ -186,60 +185,11 @@ inline PyObject* cpyrt::CPPMethod::ExecuteFast(void* self, ptrdiff_t offset,
 // Windows, so instead leaves the error be
 #ifdef _WIN32
   if (PyErr_Occurred()) {
-    Py_XDECREF(result);
+    if (ResultIsPyObject())
+      Py_XDECREF(result);
     result = nullptr;
   }
 #endif
-
-  return result;
-}
-
-//----------------------------------------------------------------------------
-inline PyObject* cpyrt::CPPMethod::ExecuteProtected(void* self,
-                                                    ptrdiff_t offset,
-                                                    CallContext* ctxt) {
-  // helper code to prevent some code duplication; this code embeds a
-  // "try/catch" block that saves the call environment for restoration in case
-  // of an otherwise fatal signal
-  PyObject* result = 0;
-
-  CLING_EXCEPTION_TRY { // copy call environment to be able to jump back on
-                        // signal
-    result = ExecuteFast(self, offset, ctxt);
-  }
-  CLING_EXCEPTION_CATCH(excode) {
-    // report any outstanding Python exceptions first
-    if (PyErr_Occurred()) {
-      std::cerr << "Python exception outstanding during C++ longjmp:"
-                << std::endl;
-      PyErr_Print();
-      std::cerr << std::endl;
-    }
-
-    // unfortunately, the excodes are not the ones from signal.h, but enums from
-    // TSysEvtHandler.h
-    if (excode == 0)
-      PyErr_SetString(gBusException,
-                      "bus error in C++; program state was reset");
-    else if (excode == 1)
-      PyErr_SetString(gSegvException,
-                      "segfault in C++; program state was reset");
-    else if (excode == 4)
-      PyErr_SetString(gIllException,
-                      "illegal instruction in C++; program state was reset");
-    else if (excode == 5)
-      PyErr_SetString(gAbrtException,
-                      "abort from C++; program state was reset");
-    else if (excode == 12)
-      PyErr_SetString(
-          PyExc_FloatingPointError,
-          "floating point exception in C++; program state was reset");
-    else
-      PyErr_SetString(PyExc_SystemError,
-                      "problem in C++; program state was reset");
-    result = 0;
-  }
-  CLING_EXCEPTION_ENDTRY;
 
   return result;
 }
@@ -296,7 +246,7 @@ void cpyrt::CPPMethod::SetPyError_(PyObject* msg) {
   //      C++ method to give some context.
   //   2. A C++ exception has occured:
   //      Augment the exception message with the docstring of this method
-  //   3. A Python exception has occured with a traceback:
+  //   3. A Python exception has occurred with a traceback:
   //      Do nothing, Python exceptions are already informative enough
   //   4. If the Python exception has no traceback hinting to an internally set
   //   error stack,
@@ -340,17 +290,17 @@ void cpyrt::CPPMethod::SetPyError_(PyObject* msg) {
     // no traceback, extract its message and fall through
     PyObject* descr = PyObject_Str(evalue);
     if (descr) {
-      details = cpyrt_PyText_AsString(descr);
+      details = PyUnicode_AsUTF8(descr);
       Py_DECREF(descr);
     }
   }
 
   PyObject* doc = GetDocString();
-  const char* cdoc = cpyrt_PyText_AsString(doc);
-  const char* cmsg = msg ? cpyrt_PyText_AsString(msg) : nullptr;
+  const char* cdoc = PyUnicode_AsUTF8(doc);
+  const char* cmsg = msg ? PyUnicode_AsUTF8(msg) : nullptr;
   PyObject* errtype = etype ? etype : PyExc_TypeError;
   PyObject* pyname = PyObject_GetAttr(errtype, PyStrings::gName);
-  const char* cname = pyname ? cpyrt_PyText_AsString(pyname) : "Exception";
+  const char* cname = pyname ? PyUnicode_AsUTF8(pyname) : "Exception";
 
   if (!isCppExc) {
     // this is the case where no Python error has occured yet, or an internal
@@ -369,9 +319,9 @@ void cpyrt::CPPMethod::SetPyError_(PyObject* msg) {
     Py_XDECREF(topMessage);
     if (msg) {
       topMessage =
-          cpyrt_PyText_FromFormat("%s =>\n    %s: %s | ", cdoc, cname, cmsg);
+          PyUnicode_FromFormat("%s =>\n    %s: %s | ", cdoc, cname, cmsg);
     } else {
-      topMessage = cpyrt_PyText_FromFormat("%s =>\n    %s: ", cdoc, cname);
+      topMessage = PyUnicode_FromFormat("%s =>\n    %s: ", cdoc, cname);
     }
     // restore the updated error
 #if PY_VERSION_HEX >= 0x030c0000
@@ -392,8 +342,8 @@ extern std::unordered_map<interop::TCppType_t, interop::TCppType_t>
 //- constructors and destructor ----------------------------------------------
 cpyrt::CPPMethod::CPPMethod(interop::TCppScope_t scope,
                             interop::TCppMethod_t method)
-    : fMethod(method), fScope(scope), fExecutor(nullptr), fArgIndices(nullptr),
-      fArgsRequired(-1) {
+    : fMethod(method), fScope(scope), fDeclaringScope(nullptr),
+      fExecutor(nullptr), fArgIndices(nullptr), fArgsRequired(-1) {
   interop::TCppType_t result =
       interop::ResolveType(interop::GetMethodReturnType(fMethod));
   if (TypeReductionMap.find(result) != TypeReductionMap.end())
@@ -455,7 +405,7 @@ PyObject* cpyrt::CPPMethod::GetPrototype(bool fa) {
   // gives
   // a::b
   std::string finalscope = interop::GetScopedFinalName(fScope);
-  return cpyrt_PyText_FromFormat(
+  return PyUnicode_FromFormat(
       "%s%s %s%s", (interop::IsStaticMethod(fMethod) ? "static " : ""),
       interop::GetMethodReturnTypeAsString(fMethod).c_str(),
       interop::GetScopedFinalName(interop::TCppScope_t(fMethod.data)).c_str(),
@@ -464,12 +414,11 @@ PyObject* cpyrt::CPPMethod::GetPrototype(bool fa) {
 
 //----------------------------------------------------------------------------
 PyObject* cpyrt::CPPMethod::GetTypeName() {
-  PyObject* cppname = cpyrt_PyText_FromString(
+  PyObject* cppname = PyUnicode_FromString(
       (GetReturnTypeName() + " (" +
        (fScope ? interop::GetScopedFinalName(fScope) + "::*)" : "*)"))
           .c_str());
-  cpyrt_PyText_AppendAndDel(&cppname,
-                            GetSignature(false /* show_formalargs */));
+  PyUnicode_AppendAndDel(&cppname, GetSignature(false /* show_formalargs */));
   return cppname;
 }
 
@@ -487,7 +436,7 @@ PyObject* cpyrt::CPPMethod::Reflex(interop::Reflex::RequestId_t request,
 
     if (format == interop::Reflex::AS_STRING ||
         (format == interop::Reflex::OPTIMAL && !scope))
-      return cpyrt_PyText_FromString(rtn.c_str());
+      return PyUnicode_FromString(rtn.c_str());
     else if (format == interop::Reflex::AS_TYPE ||
              format == interop::Reflex::OPTIMAL) {
       if (scope)
@@ -582,7 +531,9 @@ int cpyrt::CPPMethod::GetPriority() {
       if (scope)
         priority += static_cast<int>(interop::GetNumBasesLongestBranch(scope));
 
-      if (interop::IsEnumScope(scope))
+      // GetScope does not resolve enum names, so also detect enums by type
+      if (interop::IsEnumScope(scope) ||
+          interop::IsEnumType(interop::GetMethodArgType(fMethod, iarg)))
         priority -= 100;
 
       // a couple of special cases as explained above
@@ -648,7 +599,7 @@ PyObject* cpyrt::CPPMethod::GetCoVarNames() {
   // TODO: static methods need no 'self' (but is harmless otherwise)
 
   PyObject* co_varnames = PyTuple_New(co_argcount + 1 /* self */);
-  PyTuple_SET_ITEM(co_varnames, 0, cpyrt_PyText_FromString("self"));
+  PyTuple_SET_ITEM(co_varnames, 0, PyUnicode_FromString("self"));
   for (int iarg = 0; iarg < co_argcount; ++iarg) {
     std::string argrep = interop::GetMethodArgTypeAsString(fMethod, iarg);
     const std::string& parname = interop::GetMethodArgName(fMethod, iarg);
@@ -657,7 +608,7 @@ PyObject* cpyrt::CPPMethod::GetCoVarNames() {
       argrep += parname;
     }
 
-    PyObject* pyspec = cpyrt_PyText_FromString(argrep.c_str());
+    PyObject* pyspec = PyUnicode_FromString(argrep.c_str());
     PyTuple_SET_ITEM(co_varnames, iarg + 1, pyspec);
   }
 
@@ -739,7 +690,7 @@ PyObject* cpyrt::CPPMethod::GetArgDefault(int iarg, bool silent) {
 
     if (!pyval && PyErr_Occurred() && silent) {
       PyErr_Clear();
-      pyval = cpyrt_PyText_FromString(
+      pyval = PyUnicode_FromString(
           defvalue.c_str()); // allows continuation, but is likely to fail
     }
 
@@ -780,12 +731,12 @@ int cpyrt::CPPMethod::GetArgMatchScore(PyObject* args_tuple) {
   size_t score = 0;
   for (int i = 0; i < n; i++) {
     PyObject* pItem = PyTuple_GetItem(args_tuple, i);
-    if (!cpyrt_PyText_Check(pItem)) {
+    if (!PyUnicode_Check(pItem)) {
       PyErr_SetString(PyExc_TypeError,
                       "argument types should be in string format");
       return INT_MAX;
     }
-    std::string req_type(cpyrt_PyText_AsString(pItem));
+    std::string req_type(PyUnicode_AsUTF8(pItem));
 
     size_t arg_score = interop::CompareMethodArgType(fMethod, i, req_type);
 
@@ -823,8 +774,7 @@ bool cpyrt::CPPMethod::Initialize(CallContext* ctxt) {
 //----------------------------------------------------------------------------
 bool cpyrt::CPPMethod::ProcessKwds(PyObject* self_in, PyCallArgs& cargs) {
   if (!PyTuple_CheckExact(cargs.fKwds)) {
-    SetPyError_(
-        cpyrt_PyText_FromString("received unknown keyword names object"));
+    SetPyError_(PyUnicode_FromString("received unknown keyword names object"));
     return false;
   }
   Py_ssize_t nKeys = PyTuple_GET_SIZE(cargs.fKwds);
@@ -853,13 +803,13 @@ bool cpyrt::CPPMethod::ProcessKwds(PyObject* self_in, PyCallArgs& cargs) {
   for (Py_ssize_t ikey = 0; ikey < nKeys; ++ikey) {
     key = PyTuple_GET_ITEM(cargs.fKwds, ikey);
     value = cargs.fArgs[npos_args + ikey];
-    const char* ckey = cpyrt_PyText_AsStringChecked(key);
+    const char* ckey = PyUnicode_AsUTF8(key);
     if (!ckey)
       return false;
 
     auto p = fArgIndices->find(ckey);
     if (p == fArgIndices->end()) {
-      SetPyError_(cpyrt_PyText_FromFormat(
+      SetPyError_(PyUnicode_FromFormat(
           "%s::%s got an unexpected keyword argument \'%s\'",
           interop::GetFinalName(fScope).c_str(),
           interop::GetName(interop::TCppScope_t(fMethod.data)).c_str(), ckey));
@@ -890,7 +840,7 @@ bool cpyrt::CPPMethod::ProcessKwds(PyObject* self_in, PyCallArgs& cargs) {
 
   for (Py_ssize_t i = start; i < nArgs; ++i) {
     if (vArgs[i]) {
-      SetPyError_(cpyrt_PyText_FromFormat(
+      SetPyError_(PyUnicode_FromFormat(
           "%s::%s got multiple values for argument %d",
           interop::GetFinalName(fScope).c_str(),
           interop::GetName(interop::TCppScope_t(fMethod.data)).c_str(),
@@ -974,7 +924,7 @@ bool cpyrt::CPPMethod::ProcessArgs(PyCallArgs& cargs) {
   }
 
   // no self, set error and lament
-  SetPyError_(cpyrt_PyText_FromFormat(
+  SetPyError_(PyUnicode_FromFormat(
       "unbound method %s::%s must be called with a %s instance as first "
       "argument",
       interop::GetFinalName(fScope).c_str(),
@@ -1003,8 +953,8 @@ bool cpyrt::CPPMethod::ConvertAndSetArgs(cpyrt_PyArgs_t args, size_t nargsf,
     if (!fConverters[i]->SetArg(cpyrt_PyArgs_GET_ITEM(args, i), cppArgs[i],
                                 ctxt)) {
       SetPyError_(
-          cpyrt_PyText_FromFormat("could not convert argument %d: %s", i + 1,
-                                  fConverters[i]->GetFailureMsg().c_str()));
+          PyUnicode_FromFormat("could not convert argument %d: %s", i + 1,
+                               fConverters[i]->GetFailureMsg().c_str()));
       isOK = false;
       break;
     }
@@ -1016,18 +966,10 @@ bool cpyrt::CPPMethod::ConvertAndSetArgs(cpyrt_PyArgs_t args, size_t nargsf,
 //----------------------------------------------------------------------------
 PyObject* cpyrt::CPPMethod::Execute(void* self, ptrdiff_t offset,
                                     CallContext* ctxt) {
-  // call the interface method
-  PyObject* result = 0;
-
-  if (CallContext::sSignalPolicy != CallContext::kProtected &&
-      !(ctxt->fFlags & CallContext::kProtected)) {
-    // bypasses try block (i.e. segfaults will abort)
-    result = ExecuteFast(self, offset, ctxt);
-  } else {
-    // at the cost of ~10% performance, don't abort the interpreter on any
-    // signal
-    result = ExecuteProtected(self, offset, ctxt);
-  }
+  // call the interface method; the kProtected signal policy is accepted for
+  // API compatibility but has no separate path: without a signal handler
+  // that longjmps back into the call there is nothing to protect
+  PyObject* result = ExecuteFast(self, offset, ctxt);
 
   if (!result && PyErr_Occurred())
     SetPyError_(0);
@@ -1076,15 +1018,17 @@ PyObject* cpyrt::CPPMethod::Call(CPPInstance*& self, cpyrt_PyArgs_t args,
   // brought into fScope through a using-declaration (e.g. `using Base::meth;`)
   // is still declared in the base, so 'this' has to be adjusted to that base's
   // subobject. Using fScope here would yield a zero offset and corrupt memory.
-  interop::TCppScope_t declaring =
-      interop::GetParentScope(interop::TCppScope_t(fMethod.data));
-  if (!declaring)
-    declaring = fScope;
+  if (!fDeclaringScope) {
+    fDeclaringScope =
+        interop::GetParentScope(interop::TCppScope_t(fMethod.data));
+    if (!fDeclaringScope)
+      fDeclaringScope = fScope;
+  }
 
   ptrdiff_t offset = 0;
-  if (derived && derived != declaring)
-    offset =
-        interop::GetBaseOffset(derived, declaring, object, 1 /* up-cast */);
+  if (derived && derived != fDeclaringScope)
+    offset = interop::GetBaseOffset(derived, fDeclaringScope, object,
+                                    1 /* up-cast */);
 
   // actual call; recycle self instead of returning new object for same address
   // objects
@@ -1102,7 +1046,7 @@ PyObject* cpyrt::CPPMethod::Call(CPPInstance*& self, cpyrt_PyArgs_t args,
 //- protected members --------------------------------------------------------
 PyObject* cpyrt::CPPMethod::GetSignature(bool fa) {
   // construct python string from the method's signature
-  return cpyrt_PyText_FromString(GetSignatureString(fa).c_str());
+  return PyUnicode_FromString(GetSignatureString(fa).c_str());
 }
 
 /**
@@ -1123,7 +1067,7 @@ PyObject* cpyrt::CPPMethod::GetSignatureNames() {
 
   for (int iarg = 0; iarg < argcount; ++iarg) {
     const std::string& argname_cpp = interop::GetMethodArgName(fMethod, iarg);
-    PyObject* argname_py = cpyrt_PyText_FromString(argname_cpp.c_str());
+    PyObject* argname_py = PyUnicode_FromString(argname_cpp.c_str());
     PyTuple_SET_ITEM(signature_names, iarg, argname_py);
   }
 
@@ -1149,8 +1093,8 @@ PyObject* cpyrt::CPPMethod::GetSignatureTypes() {
 
   // Insert the return type first
   std::string return_type = GetReturnTypeName();
-  PyObject* return_type_py = cpyrt_PyText_FromString(return_type.c_str());
-  PyDict_SetItem(signature_types_dict, cpyrt_PyText_FromString("return_type"),
+  PyObject* return_type_py = PyUnicode_FromString(return_type.c_str());
+  PyDict_SetItem(signature_types_dict, PyUnicode_FromString("return_type"),
                  return_type_py);
 
   // Build a tuple of the argument types for this signature.
@@ -1160,12 +1104,17 @@ PyObject* cpyrt::CPPMethod::GetSignatureTypes() {
   for (int iarg = 0; iarg < argcount; ++iarg) {
     const std::string& argtype_cpp =
         interop::GetMethodArgTypeAsString(fMethod, iarg);
-    PyObject* argtype_py = cpyrt_PyText_FromString(argtype_cpp.c_str());
+    PyObject* argtype_py = PyUnicode_FromString(argtype_cpp.c_str());
     PyTuple_SET_ITEM(parameter_types, iarg, argtype_py);
   }
 
-  PyDict_SetItem(signature_types_dict, cpyrt_PyText_FromString("input_types"),
+  PyDict_SetItem(signature_types_dict, PyUnicode_FromString("input_types"),
                  parameter_types);
+
+  // Const-qualification of the method itself (always false for free
+  // functions and static methods).
+  PyDict_SetItem(signature_types_dict, PyUnicode_FromString("is_const"),
+                 PyBool_FromLong(IsConst()));
 
   return signature_types_dict;
 }

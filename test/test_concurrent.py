@@ -1,5 +1,5 @@
 from pytest import mark, skip
-from support import IS_LINUX_ARM, IS_MAC_ARM, IS_MAC_X86
+from support import IS_LINUX_ARM, IS_MAC_ARM
 
 
 class TestCONCURRENT:
@@ -15,7 +15,6 @@ class TestCONCURRENT:
 
         cppjit.gbl.Workers.calc.__release_gil__ = True
 
-    @mark.xfail(run=False, reason="Crashes")
     def test01_simple_threads(self):
         """Run basic Python threads"""
 
@@ -35,7 +34,6 @@ class TestCONCURRENT:
         for t in threads:
             t.join()
 
-    @mark.xfail(run=False, reason="Crashes")
     def test02_futures(self):
         """Run with Python futures"""
 
@@ -91,7 +89,6 @@ class TestCONCURRENT:
         if t.is_alive():  # was timed-out
             cppjit.gbl.test12_timeout.stopit[0] = True
 
-    @mark.xfail(condition=IS_MAC_X86, reason="Fails on OS X x86")
     def test04_cpp_threading_with_exceptions(self):
         """Threads and Python exceptions"""
 
@@ -173,7 +170,7 @@ class TestCONCURRENT:
         assert "RuntimeError" in w.err_msg
         assert "all wrong" in w.err_msg
 
-    @mark.xfail(run=False, condition=IS_LINUX_ARM, reason="Crashes pytest on Linux ARM")
+    @mark.xfail(condition=IS_LINUX_ARM, run=False, reason="Crashes pytest on Linux ARM")
     def test05_float2d_callback(self):
         """Passing of 2-dim float arguments"""
 
@@ -267,7 +264,6 @@ class TestCONCURRENT:
         for t in threads:
             t.join()
 
-    @mark.xfail(run=False, reason="Crashes")
     def test07_overload_reuse_in_threads_wo_gil(self):
         """Threads reuse overload objects; check for clashes if no GIL"""
 

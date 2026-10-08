@@ -5,6 +5,7 @@ using namespace cppjit;
 #include "CPPInstance.h"
 #include "CPPOverload.h"
 #include "CPPScope.h"
+#include "Compatibility.h"
 #include "MemoryRegulator.h"
 #include "ProxyWrappers.h"
 #include "PyStrings.h"
@@ -281,14 +282,13 @@ static PyObject* op_destruct(CPPInstance* self) {
 
 //= cpyrt object dispatch support =========================================
 static PyObject* op_dispatch(PyObject* self, PyObject* args,
-                             PyObject* /* kdws */) {
+                             PyObject* /* kwds */) {
   // User-side __dispatch__ method to allow selection of a specific overloaded
   // method. The actual selection is in the __overload__() method of
   // CPPOverload.
   PyObject *mname = nullptr, *sigarg = nullptr;
   if (!PyArg_ParseTuple(args, const_cast<char*>("O!O!:__dispatch__"),
-                        &cpyrt_PyText_Type, &mname, &cpyrt_PyText_Type,
-                        &sigarg))
+                        &PyUnicode_Type, &mname, &PyUnicode_Type, &sigarg))
     return nullptr;
 
   // get the named overload
@@ -554,8 +554,7 @@ static inline void* cast_actual(void* obj) {
     return address;
 
   interop::TCppScope_t klass = ((CPPClass*)Py_TYPE((PyObject*)obj))->fCppType;
-  interop::TCppScope_t clActual =
-      klass /* XXX: interop::GetActualClass(klass, address) */;
+  interop::TCppScope_t clActual = interop::GetActualClass(klass, address);
   if (clActual && clActual != klass) {
     intptr_t offset = interop::GetBaseOffset(
         clActual, klass, address, -1 /* down-cast */, true /* report errors */);
@@ -691,14 +690,14 @@ static PyObject* op_repr(CPPInstance* self) {
   PyObject* repr = nullptr;
   if (self->IsSmart()) {
     std::string smartPtrName = interop::GetScopedFinalName(SMART_TYPE(self));
-    repr = cpyrt_PyText_FromFormat(
+    repr = PyUnicode_FromFormat(
         const_cast<char*>("<%s.%s object at %p held by %s at %p>"),
-        cpyrt_PyText_AsString(modname), clName.c_str(), self->GetObject(),
+        PyUnicode_AsUTF8(modname), clName.c_str(), self->GetObject(),
         smartPtrName.c_str(), self->GetObjectRaw());
   } else {
-    repr = cpyrt_PyText_FromFormat(const_cast<char*>("<%s.%s object at %p>"),
-                                   cpyrt_PyText_AsString(modname),
-                                   clName.c_str(), self->GetObject());
+    repr = PyUnicode_FromFormat(const_cast<char*>("<%s.%s object at %p>"),
+                                PyUnicode_AsUTF8(modname), clName.c_str(),
+                                self->GetObject());
   }
 
   Py_DECREF(modname);
@@ -783,7 +782,7 @@ static PyObject* op_str_internal(PyObject* pyobj, PyObject* lshift,
 
   if (res) {
     Py_DECREF(res);
-    return cpyrt_PyText_FromString(s.str().c_str());
+    return PyUnicode_FromString(s.str().c_str());
   }
 
   return nullptr;
@@ -827,7 +826,7 @@ static PyObject* op_str(CPPInstance* self) {
         interop::TCppScope_t rnsID =
             interop::GetScope(TypeManip::extract_namespace(rcname));
         PyCallable* pyfunc =
-            Utility::FindBinaryOperator("std::ostream&", rcname, "<<", rnsID);
+            Utility::FindBinaryOperator("std::ostream", rcname, "<<", rnsID);
         if (!pyfunc)
           continue;
 
@@ -842,9 +841,9 @@ static PyObject* op_str(CPPInstance* self) {
         // otherwise not found
         // TODO: ToString() still leaks ...
         const std::string& pretty =
-            interop::ToString(self->ObjectIsA(), self->GetObject());
+            compat::ObjToString(self->ObjectIsA(), self->GetObject());
         if (!pretty.empty())
-          return cpyrt_PyText_FromString(pretty.c_str());
+          return PyUnicode_FromString(pretty.c_str());
         continue;
       }
 
@@ -871,22 +870,7 @@ static PyObject* op_str(CPPInstance* self) {
   // 2. Cling's pretty printing (not done through backend for performance
   // reasons)
   if (!ScopeFlagCheck(self, CPPScope::kNoPrettyPrint)) {
-    static PyObject* printValue = nullptr;
-    if (!printValue) {
-      PyObject* gbl =
-          PyDict_GetItemString(PySys_GetObject((char*)"modules"), "cppjit.gbl");
-      PyObject* cl = PyObject_GetAttrString(gbl, (char*)"cling");
-      printValue = PyObject_GetAttrString(cl, (char*)"printValue");
-      Py_DECREF(cl);
-      // gbl is borrowed
-      if (printValue) {
-        Py_DECREF(printValue); // make borrowed
-        if (!PyCallable_Check(printValue))
-          printValue = nullptr; // unusable ...
-      }
-      if (!printValue) // unlikely
-        ScopeFlagSet(self, CPPScope::kNoPrettyPrint);
-    }
+    PyObject* printValue = compat::GetClingPrintValue();
 
     if (printValue) {
       // as printValue only works well for templates taking pointer arguments,
@@ -903,7 +887,7 @@ static PyObject* op_str(CPPInstance* self) {
 
       // explicit template lookup
       PyObject* clName =
-          cpyrt_PyText_FromString(Utility::ClassName((PyObject*)self).c_str());
+          PyUnicode_FromString(Utility::ClassName((PyObject*)self).c_str());
       PyObject* OL = PyObject_GetItem(printValue, clName);
       Py_DECREF(clName);
 
@@ -917,7 +901,7 @@ static PyObject* op_str(CPPInstance* self) {
         const std::string& pv =
             *(std::string*)((CPPInstance*)pretty)->GetObject();
         if (!pv.empty() && pv.find("@0x") == std::string::npos)
-          result = cpyrt_PyText_FromString(pv.c_str());
+          result = PyUnicode_FromString(pv.c_str());
         Py_DECREF(pretty);
         if (result)
           return result;
@@ -1112,37 +1096,36 @@ PyTypeObject CPPInstance_Type = {
     0,                 // tp_getattro
     0,                 // tp_setattro
     0,                 // tp_as_buffer
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_CHECKTYPES |
-        Py_TPFLAGS_HAVE_GC,                  // tp_flags
-    (char*)"cppjit object proxy (internal)", // tp_doc
-    (traverseproc)op_traverse,               // tp_traverse
-    (inquiry)op_clear,                       // tp_clear
-    (richcmpfunc)op_richcompare,             // tp_richcompare
-    0,                                       // tp_weaklistoffset
-    0,                                       // tp_iter
-    0,                                       // tp_iternext
-    op_methods,                              // tp_methods
-    0,                                       // tp_members
-    op_getset,                               // tp_getset
-    0,                                       // tp_base
-    0,                                       // tp_dict
-    0,                                       // tp_descr_get
-    0,                                       // tp_descr_set
-    0,                                       // tp_dictoffset
-    0,                                       // tp_init
-    0,                                       // tp_alloc
-    (newfunc)op_new,                         // tp_new
-    0,                                       // tp_free
-    0,                                       // tp_is_gc
-    0,                                       // tp_bases
-    0,                                       // tp_mro
-    0,                                       // tp_cache
-    0,                                       // tp_subclasses
-    0,                                       // tp_weaklist
-    0,                                       // tp_del
-    0,                                       // tp_version_tag
-    0,                                       // tp_finalize
-    0                                        // tp_vectorcall
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC, // tp_flags
+    (char*)"cppjit object proxy (internal)",                       // tp_doc
+    (traverseproc)op_traverse,   // tp_traverse
+    (inquiry)op_clear,           // tp_clear
+    (richcmpfunc)op_richcompare, // tp_richcompare
+    0,                           // tp_weaklistoffset
+    0,                           // tp_iter
+    0,                           // tp_iternext
+    op_methods,                  // tp_methods
+    0,                           // tp_members
+    op_getset,                   // tp_getset
+    0,                           // tp_base
+    0,                           // tp_dict
+    0,                           // tp_descr_get
+    0,                           // tp_descr_set
+    0,                           // tp_dictoffset
+    0,                           // tp_init
+    0,                           // tp_alloc
+    (newfunc)op_new,             // tp_new
+    0,                           // tp_free
+    0,                           // tp_is_gc
+    0,                           // tp_bases
+    0,                           // tp_mro
+    0,                           // tp_cache
+    0,                           // tp_subclasses
+    0,                           // tp_weaklist
+    0,                           // tp_del
+    0,                           // tp_version_tag
+    0,                           // tp_finalize
+    0                            // tp_vectorcall
     CPYRT_PYTYPE_TAIL};
 
 } // namespace cppjit::cpyrt

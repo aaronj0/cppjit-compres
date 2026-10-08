@@ -95,7 +95,11 @@ CPPJIT_DECLARE_BASIC_CONVERTER(WChar);
 CPPJIT_DECLARE_BASIC_CONVERTER(Char16);
 CPPJIT_DECLARE_BASIC_CONVERTER(Char32);
 CPPJIT_DECLARE_BASIC_CONVERTER(Int8);
+CPPJIT_DECLARE_BASIC_CONVERTER(Int16);
+CPPJIT_DECLARE_BASIC_CONVERTER(Int32);
 CPPJIT_DECLARE_BASIC_CONVERTER(UInt8);
+CPPJIT_DECLARE_BASIC_CONVERTER(UInt16);
+CPPJIT_DECLARE_BASIC_CONVERTER(UInt32);
 CPPJIT_DECLARE_BASIC_CONVERTER(Short);
 CPPJIT_DECLARE_BASIC_CONVERTER(UShort);
 CPPJIT_DECLARE_BASIC_CONVERTER(Int);
@@ -115,7 +119,11 @@ CPPJIT_DECLARE_REFCONVERTER(Char32);
 CPPJIT_DECLARE_REFCONVERTER(SChar);
 CPPJIT_DECLARE_REFCONVERTER(UChar);
 CPPJIT_DECLARE_REFCONVERTER(Int8);
+CPPJIT_DECLARE_REFCONVERTER(Int16);
+CPPJIT_DECLARE_REFCONVERTER(Int32);
 CPPJIT_DECLARE_REFCONVERTER(UInt8);
+CPPJIT_DECLARE_REFCONVERTER(UInt16);
+CPPJIT_DECLARE_REFCONVERTER(UInt32);
 CPPJIT_DECLARE_REFCONVERTER(Short);
 CPPJIT_DECLARE_REFCONVERTER(UShort);
 CPPJIT_DECLARE_REFCONVERTER(UInt);
@@ -127,6 +135,27 @@ CPPJIT_DECLARE_REFCONVERTER(ULLong);
 CPPJIT_DECLARE_REFCONVERTER(Float);
 CPPJIT_DECLARE_REFCONVERTER(Double);
 CPPJIT_DECLARE_REFCONVERTER(LDouble);
+
+// by-value enum parameters: exact-match instances of the same enum in the
+// first resolution round, delegate storage to the underlying integer converter
+class EnumConverter : public Converter {
+public:
+  EnumConverter(Converter* base, const std::string& enum_name)
+      : fBase(base), fEnumName(enum_name) {}
+  ~EnumConverter() override;
+
+public:
+  bool SetArg(PyObject*, Parameter&, CallContext* = nullptr) override;
+  PyObject* FromMemory(void* address) override;
+  bool ToMemory(PyObject* value, void* address,
+                PyObject* ctxt = nullptr) override;
+  bool HasState() override { return true; }
+  std::string GetFailureMsg() override;
+
+private:
+  Converter* fBase;
+  std::string fEnumName;
+};
 
 class VoidConverter : public Converter {
 public:
@@ -226,7 +255,11 @@ CPPJIT_DECLARE_ARRAY_CONVERTER(SChar);
 CPPJIT_DECLARE_ARRAY_CONVERTER(UChar);
 CPPJIT_DECLARE_ARRAY_CONVERTER(Byte);
 CPPJIT_DECLARE_ARRAY_CONVERTER(Int8);
+CPPJIT_DECLARE_ARRAY_CONVERTER(Int16);
+CPPJIT_DECLARE_ARRAY_CONVERTER(Int32);
 CPPJIT_DECLARE_ARRAY_CONVERTER(UInt8);
+CPPJIT_DECLARE_ARRAY_CONVERTER(UInt16);
+CPPJIT_DECLARE_ARRAY_CONVERTER(UInt32);
 CPPJIT_DECLARE_ARRAY_CONVERTER(Short);
 CPPJIT_DECLARE_ARRAY_CONVERTER(UShort);
 CPPJIT_DECLARE_ARRAY_CONVERTER(Int);
@@ -249,6 +282,7 @@ public:
   using SCharArrayConverter::SCharArrayConverter;
   bool SetArg(PyObject*, Parameter&, CallContext* = nullptr) override;
   PyObject* FromMemory(void* address) override;
+  bool ToMemory(PyObject*, void*, PyObject* = nullptr) override;
   std::string GetFailureMsg() override { return "[CStringArrayConverter]"; };
 
 private:

@@ -2,20 +2,13 @@
 #include "cpyrt.h"
 
 using namespace cppjit;
-#include "structmember.h" // from Python
-#include "cpyrt/Reflex.h"
-#if PY_VERSION_HEX < 0x030b0000
-#include "code.h" // from Python
-#endif
-#ifndef CO_NOFREE
-// python2.2 does not have CO_NOFREE defined
-#define CO_NOFREE 0x0040
-#endif
 #include "CPPInstance.h"
 #include "CPPOverload.h"
 #include "CallContext.h"
 #include "PyStrings.h"
 #include "Utility.h"
+#include "structmember.h" // from Python
+#include "cpyrt/Reflex.h"
 
 // Standard
 #include <algorithm>
@@ -55,12 +48,12 @@ public:
   }
 
   PyObject* GetSignature(bool /*show_formalargs*/ = true) override {
-    return cpyrt_PyText_FromString("*args, **kwargs");
+    return PyUnicode_FromString("*args, **kwargs");
   }
   PyObject* GetSignatureNames() override { return PyTuple_New(0); }
   PyObject* GetSignatureTypes() override { return PyTuple_New(0); }
   PyObject* GetPrototype(bool /*show_formalargs*/ = true) override {
-    return cpyrt_PyText_FromString("<callback>");
+    return PyUnicode_FromString("<callback>");
   }
   PyObject* GetDocString() override {
     if (PyObject_HasAttrString(fCallable, "__doc__")) {
@@ -219,7 +212,7 @@ static inline PyObject* HandleReturn(CPPOverload* pymeth, CPPInstance* im_self,
 
 //= cpyrt method proxy object behaviour ===================================
 static PyObject* mp_name(CPPOverload* pymeth, void*) {
-  return cpyrt_PyText_FromString(pymeth->GetName().c_str());
+  return PyUnicode_FromString(pymeth->GetName().c_str());
 }
 
 //----------------------------------------------------------------------------
@@ -249,10 +242,10 @@ static PyObject* mp_doc(CPPOverload* pymeth, void*) {
     return doc;
 
   // overloaded method
-  PyObject* separator = cpyrt_PyText_FromString("\n");
+  PyObject* separator = PyUnicode_FromString("\n");
   for (CPPOverload::Methods_t::size_type i = 1; i < nMethods; ++i) {
-    cpyrt_PyText_Append(&doc, separator);
-    cpyrt_PyText_AppendAndDel(&doc, methods[i]->GetDocString());
+    PyUnicode_Append(&doc, separator);
+    PyUnicode_AppendAndDel(&doc, methods[i]->GetDocString());
   }
   Py_DECREF(separator);
 
@@ -300,6 +293,9 @@ static PyObject* mp_func_overloads_names(CPPOverload* pymeth) {
  * ('float',), 'return_type': 'float'}, 'int ::foo(int a)': {'input_types':
  * ('int',), 'return_type': 'int'}, 'int ::foo(int a, float b)': {'input_types':
  * ('int', 'float'), 'return_type': 'int'}}
+ *
+ * Each overload's value dict also carries 'is_const': the method's own
+ * const-qualification (always False for free functions and static methods).
  */
 static PyObject* mp_func_overloads_types(CPPOverload* pymeth) {
 
@@ -440,7 +436,7 @@ static inline int set_flag(CPPOverload* pymeth, PyObject* value,
 //----------------------------------------------------------------------------
 static PyObject* mp_getcreates(CPPOverload* pymeth, void*) {
   // Get '__creates__' boolean, which determines ownership of return values.
-  return PyInt_FromLong((long)IsCreator(pymeth->fMethodInfo->fFlags));
+  return PyLong_FromLong((long)IsCreator(pymeth->fMethodInfo->fFlags));
 }
 
 //----------------------------------------------------------------------------
@@ -449,36 +445,23 @@ static int mp_setcreates(CPPOverload* pymeth, PyObject* value, void*) {
   return set_flag(pymeth, value, CallContext::kIsCreator, "__creates__");
 }
 
+constexpr const char* mempolicy_error_message =
+    "The __mempolicy__ attribute can't be used, because in the past it was "
+    "reserved to manage the local memory policy. "
+    "If you want to do that now, please implement a pythonization for your "
+    "class that uses SetOwnership() to manage the "
+    "ownership of arguments according to your needs.";
+
 //----------------------------------------------------------------------------
-static PyObject* mp_getmempolicy(CPPOverload* pymeth, void*) {
-  // Get '_mempolicy' enum, which determines ownership of call arguments.
-  if (pymeth->fMethodInfo->fFlags & CallContext::kUseHeuristics)
-    return PyInt_FromLong(CallContext::kUseHeuristics);
-
-  if (pymeth->fMethodInfo->fFlags & CallContext::kUseStrict)
-    return PyInt_FromLong(CallContext::kUseStrict);
-
-  return PyInt_FromLong(-1);
+static PyObject* mp_getmempolicy(CPPOverload*, void*) {
+  PyErr_SetString(PyExc_RuntimeError, mempolicy_error_message);
+  return nullptr;
 }
 
 //----------------------------------------------------------------------------
-static int mp_setmempolicy(CPPOverload* pymeth, PyObject* value, void*) {
-  // Set '_mempolicy' enum, which determines ownership of call arguments.
-  long mempolicy = PyLong_AsLong(value);
-  if (mempolicy == CallContext::kUseHeuristics) {
-    pymeth->fMethodInfo->fFlags |= CallContext::kUseHeuristics;
-    pymeth->fMethodInfo->fFlags &= ~CallContext::kUseStrict;
-  } else if (mempolicy == CallContext::kUseStrict) {
-    pymeth->fMethodInfo->fFlags |= CallContext::kUseStrict;
-    pymeth->fMethodInfo->fFlags &= ~CallContext::kUseHeuristics;
-  } else {
-    PyErr_SetString(PyExc_ValueError,
-                    "expected kMemoryStrict or kMemoryHeuristics as value for "
-                    "__mempolicy__");
-    return -1;
-  }
-
-  return 0;
+static int mp_setmempolicy(CPPOverload*, PyObject*, void*) {
+  PyErr_SetString(PyExc_RuntimeError, mempolicy_error_message);
+  return -1;
 }
 
 //----------------------------------------------------------------------------
@@ -503,16 +486,16 @@ CPPJIT_BOOLEAN_PROPERTY(sig2exc,  CallContext::kProtected,   "__sig2exc__")
 
 static PyObject* mp_getcppname(CPPOverload* pymeth, void*) {
   if ((void*)pymeth == (void*)&CPPOverload_Type)
-    return cpyrt_PyText_FromString("CPPOverload_Type");
+    return PyUnicode_FromString("CPPOverload_Type");
 
   auto& methods = pymeth->fMethodInfo->fMethods;
   if (methods.empty())
-    return cpyrt_PyText_FromString("void (*)()"); // debatable
+    return PyUnicode_FromString("void (*)()"); // debatable
 
   if (methods.size() == 1)
     return methods[0]->GetTypeName();
 
-  return cpyrt_PyText_FromString("void* (*)(...)"); // id.
+  return PyUnicode_FromString("void* (*)(...)"); // id.
 }
 
 //----------------------------------------------------------------------------
@@ -545,9 +528,7 @@ static PyGetSetDef mp_getset[] = {
      (char*)"For ownership rules of result: if true, objects are python-owned",
      nullptr},
     {(char*)"__mempolicy__", (getter)mp_getmempolicy, (setter)mp_setmempolicy,
-     (char*)"For argument ownership rules: like global, either heuristic or "
-            "strict",
-     nullptr},
+     (char*)"Unused", nullptr},
     {(char*)"__set_lifeline__", (getter)mp_getlifeline, (setter)mp_setlifeline,
      (char*)"If true, set a lifeline from the return value onto self", nullptr},
     {(char*)"__release_gil__", (getter)mp_getthreaded, (setter)mp_setthreaded,
@@ -579,9 +560,6 @@ static PyObject* mp_vectorcall(CPPOverload* pymeth, PyObject* const* args,
 
   CallContext ctxt{};
   const auto mflags = pymeth->fMethodInfo->fFlags;
-  const auto mempolicy =
-      (mflags & (CallContext::kUseHeuristics | CallContext::kUseStrict));
-  ctxt.fFlags |= mempolicy ? mempolicy : (uint64_t)CallContext::sMemoryPolicy;
   ctxt.fFlags |= (mflags & CallContext::kReleaseGIL);
   ctxt.fFlags |= (mflags & CallContext::kProtected);
   if (IsConstructor(pymeth->fMethodInfo->fFlags))
@@ -645,10 +623,19 @@ static PyObject* mp_vectorcall(CPPOverload* pymeth, PyObject* const* args,
     pymeth->fMethodInfo->fFlags |= CallContext::kIsSorted;
   }
 
+  // three stages, as the C++ ranking: exact matches, standard conversions
+  // (kNoImplicit: no user-defined construction from the argument), then
+  // implicit conversions
   std::vector<Utility::PyError_t> errors;
   std::vector<bool> implicit_possible(methods.size());
-  for (int stage = 0; stage < 2; ++stage) {
-    bool bHaveImplicit = false;
+  bool bHaveImplicit = false;
+  for (int stage = 0; stage < 3; ++stage) {
+    if (stage == 1)
+      ctxt.fFlags |= CallContext::kNoImplicit;
+    else if (stage == 2) {
+      ctxt.fFlags &= ~CallContext::kNoImplicit;
+      ctxt.fFlags |= CallContext::kAllowImplicit;
+    }
     for (CPPOverload::Methods_t::size_type i = 0; i < nMethods; ++i) {
       if (stage && !implicit_possible[i])
         continue; // did not set implicit conversion, so don't try again
@@ -683,8 +670,7 @@ static PyObject* mp_vectorcall(CPPOverload* pymeth, PyObject* const* args,
       if (!PyErr_Occurred()) {
         // this should not happen; set an error to prevent core dump and report
         PyObject* sig = methods[i]->GetPrototype();
-        PyErr_Format(PyExc_SystemError, "%s =>\n    %s",
-                     cpyrt_PyText_AsString(sig),
+        PyErr_Format(PyExc_SystemError, "%s =>\n    %s", PyUnicode_AsUTF8(sig),
                      (char*)"nullptr result without error in overload call");
         Py_DECREF(sig);
       }
@@ -707,12 +693,10 @@ static PyObject* mp_vectorcall(CPPOverload* pymeth, PyObject* const* args,
     // only move forward if implicit conversions are available
     if (!bHaveImplicit)
       break;
-
-    ctxt.fFlags |= CallContext::kAllowImplicit;
   }
 
   // first summarize, then add details
-  PyObject* topmsg = cpyrt_PyText_FromFormat(
+  PyObject* topmsg = PyUnicode_FromFormat(
       "none of the %d overloaded methods succeeded. Full details:",
       (int)nMethods);
   SetDetailedException(std::move(errors), topmsg /* steals */,
@@ -728,7 +712,7 @@ static PyObject* mp_str(CPPOverload* cppinst) {
   std::ostringstream s;
   s << "<C++ overload \"" << cppinst->fMethodInfo->fName << "\" at "
     << (void*)cppinst << ">";
-  return cpyrt_PyText_FromString(s.str().c_str());
+  return PyUnicode_FromString(s.str().c_str());
 }
 
 //----------------------------------------------------------------------------
@@ -986,10 +970,19 @@ void cpyrt::CPPOverload::Set(const std::string& name,
     fMethodInfo->fFlags |=
         (CallContext::kIsCreator | CallContext::kIsConstructor);
 
-  // special case, in heuristics mode also tag *Clone* methods as creators
-  if (CallContext::sMemoryPolicy == CallContext::kUseHeuristics &&
-      name.find("Clone") != std::string::npos)
-    fMethodInfo->fFlags |= CallContext::kIsCreator;
+  // special case, in heuristics mode also tag *Clone* methods as creators. Only
+  // check that Clone is present in the method name, not in the template
+  // argument list.
+  if (CallContext::GlobalPolicyFlags() & CallContext::kUseHeuristics) {
+    std::string_view name_maybe_template = name;
+    auto begin_template = name_maybe_template.find_first_of('<');
+    if (begin_template <= name_maybe_template.size()) {
+      name_maybe_template = name_maybe_template.substr(0, begin_template);
+    }
+    if (name_maybe_template.find("Clone") != std::string_view::npos) {
+      fMethodInfo->fFlags |= CallContext::kIsCreator;
+    }
+  }
 
   fVectorCall = (vectorcallfunc)mp_vectorcall;
 }
@@ -1031,7 +1024,7 @@ PyObject* cpyrt::CPPOverload::FindOverload(const std::string& signature,
     bool found = accept_any;
     if (!found) {
       PyObject* pysig2 = meth->GetSignature(false);
-      std::string sig2(cpyrt_PyText_AsString(pysig2));
+      std::string sig2(PyUnicode_AsUTF8(pysig2));
       sig2.erase(std::remove(sig2.begin(), sig2.end(), ' '), std::end(sig2));
       Py_DECREF(pysig2);
       if (sig1 == sig2)
@@ -1039,7 +1032,7 @@ PyObject* cpyrt::CPPOverload::FindOverload(const std::string& signature,
 
       if (!found) {
         pysig2 = meth->GetSignature(true);
-        std::string sig3(cpyrt_PyText_AsString(pysig2));
+        std::string sig3(PyUnicode_AsUTF8(pysig2));
         sig3.erase(std::remove(sig3.begin(), sig3.end(), ' '), std::end(sig3));
         Py_DECREF(pysig2);
         if (sig1 == sig3)
@@ -1115,12 +1108,12 @@ PyObject* cpyrt::CPPOverload::FindOverload(PyObject* args_tuple,
 
     for (int i = 0; i < n; i++) {
       PyObject* pItem = PyTuple_GetItem(args_tuple, i);
-      if (!cpyrt_PyText_Check(pItem)) {
+      if (!PyUnicode_Check(pItem)) {
         PyErr_Format(PyExc_LookupError,
                      "argument types should be in string format");
         return (PyObject*)nullptr;
       }
-      std::string arg_type(cpyrt_PyText_AsString(pItem));
+      std::string arg_type(PyUnicode_AsUTF8(pItem));
       sigargs += arg_type + ", ";
     }
     sigargs += ")";

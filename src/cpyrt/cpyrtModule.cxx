@@ -16,6 +16,7 @@ using namespace cppjit;
 #include "PyStrings.h"
 #include "TemplateProxy.h"
 #include "TupleOfInstances.h"
+#include "TypeManip.h"
 #include "Utility.h"
 #include "cppjit_interop.h"
 #include <unordered_map>
@@ -39,51 +40,11 @@ PyObject* Instance_FromVoidPtr(void* addr, const std::string& classname,
 #include <utility>
 #include <vector>
 
-#if PY_VERSION_HEX < 0x030b0000
-namespace cppjit::cpyrt {
-extern dict_lookup_func gDictLookupOrg;
-dict_lookup_func gDictLookupOrg = nullptr;
-} // namespace cppjit::cpyrt
-#endif
-
 std::unordered_map<interop::TCppType_t, interop::TCppType_t> TypeReductionMap;
-
-// Note: as of py3.11, dictionary objects no longer carry a function pointer for
-// the lookup, so it can no longer be shimmed and "from cppjit.interactive
-// import *" thus no longer works.
-#if PY_VERSION_HEX < 0x030b0000
-
-//- from Python's dictobject.c -------------------------------------------------
-typedef struct PyDictKeyEntry {
-  /* Cached hash code of me_key. */
-  Py_hash_t me_hash;
-  PyObject* me_key;
-  PyObject* me_value; /* This field is only meaningful for combined tables */
-} PyDictEntry;
-
-typedef struct _dictkeysobject {
-  Py_ssize_t dk_refcnt;
-  Py_ssize_t dk_size;
-  dict_lookup_func dk_lookup;
-  Py_ssize_t dk_usable;
-  Py_ssize_t dk_nentries;
-  union {
-    int8_t as_1[8];
-    int16_t as_2[4];
-    int32_t as_4[2];
-#if SIZEOF_VOID_P > 4
-    int64_t as_8[1];
-#endif
-  } dk_indices;
-} PyDictKeysObject;
-
-#define CPYRT_GET_DICT_LOOKUP(mp) ((dict_lookup_func&)mp->ma_keys->dk_lookup)
-
-#endif // PY_VERSION_HEX < 0x030b0000
 
 //- data -----------------------------------------------------------------------
 static PyObject* nullptr_repr(PyObject*) {
-  return cpyrt_PyText_FromString("nullptr");
+  return PyUnicode_FromString("nullptr");
 }
 
 static void nullptr_dealloc(PyObject*) {
@@ -187,7 +148,7 @@ static PyTypeObject PyNullPtr_t_Type = {
     CPYRT_PYTYPE_TAIL};
 
 static PyObject* default_repr(PyObject*) {
-  return cpyrt_PyText_FromString("type default");
+  return PyUnicode_FromString("type default");
 }
 
 static void default_dealloc(PyObject*) {
@@ -292,145 +253,6 @@ namespace {
 using namespace cppjit::cpyrt;
 
 //----------------------------------------------------------------------------
-#if PY_VERSION_HEX < 0x030b0000
-namespace {
-
-class GblGetter {
-public:
-  GblGetter() {
-    PyObject* cppjit = PyImport_AddModule((char*)"cppjit");
-    fGbl = PyObject_GetAttrString(cppjit, (char*)"gbl");
-  }
-  ~GblGetter() { Py_DECREF(fGbl); }
-
-  PyObject* operator*() { return fGbl; }
-
-private:
-  PyObject* fGbl;
-};
-
-} // unnamed namespace
-
-inline Py_ssize_t OrgDictLookup(PyDictObject* mp, PyObject* key, Py_hash_t hash,
-                                PyObject*** value_addr, Py_ssize_t* hashpos) {
-  return (*gDictLookupOrg)(mp, key, hash, value_addr, hashpos);
-}
-#define CPYRT_ORGDICT_LOOKUP(mp, key, hash, value_addr, hashpos)               \
-  OrgDictLookup(mp, key, hash, value_addr, hashpos)
-
-Py_ssize_t cpyrtLookDictString(PyDictObject* mp, PyObject* key, Py_hash_t hash,
-                               PyObject*** value_addr, Py_ssize_t* hashpos) {
-  static GblGetter gbl;
-  Py_ssize_t ep;
-
-  // first search dictionary itself
-  ep = CPYRT_ORGDICT_LOOKUP(mp, key, hash, value_addr, hashpos);
-  if (gDictLookupActive)
-    return ep;
-
-  if (ep >= 0)
-    return ep;
-
-  // filter for builtins
-  if (PyDict_GetItem(PyEval_GetBuiltins(), key) != 0)
-    return ep;
-
-  // normal lookup failed, attempt to get C++ enum/global/class from top-level
-  gDictLookupActive = true;
-
-  // attempt to get C++ enum/global/class from top-level
-  PyObject* val = PyObject_GetAttr(*gbl, key);
-
-  if (val) {
-    // success ...
-
-    if (CPPDataMember_CheckExact(val)) {
-      // don't want to add to dictionary (the proper place would be the
-      // dictionary of the (meta)class), but modifying ep will be noticed no
-      // matter what; just return the actual value and live with the copy in
-      // the dictionary (mostly, this is correct)
-      PyObject* actual_val = Py_TYPE(val)->tp_descr_get(val, nullptr, nullptr);
-      Py_DECREF(val);
-      val = actual_val;
-    }
-
-    // add reference to C++ entity in the given dictionary
-    CPYRT_GET_DICT_LOOKUP(mp) = gDictLookupOrg; // prevent recursion
-    if (PyDict_SetItem((PyObject*)mp, key, val) == 0) {
-      ep = CPYRT_ORGDICT_LOOKUP(mp, key, hash, value_addr, hashpos);
-    } else {
-      ep = -1;
-    }
-    CPYRT_GET_DICT_LOOKUP(mp) = cpyrtLookDictString; // restore
-
-    // done with val
-    Py_DECREF(val);
-  } else
-    PyErr_Clear();
-
-  if (mp->ma_keys->dk_usable <= 0) {
-    // big risk that this lookup will result in a resize, so force it here
-    // to be able to reset the lookup function; of course, this is nowhere
-    // near fool-proof, but should cover interactive usage ...
-    CPYRT_GET_DICT_LOOKUP(mp) = gDictLookupOrg;
-    const int maxinsert = 5;
-    PyObject* buf[maxinsert];
-    for (int varmax = 1; varmax <= maxinsert; ++varmax) {
-      for (int ivar = 0; ivar < varmax; ++ivar) {
-        buf[ivar] = cpyrt_PyText_FromFormat("__CPYRT_FORCE_RESIZE_%d", ivar);
-        PyDict_SetItem((PyObject*)mp, buf[ivar], Py_None);
-      }
-      for (int ivar = 0; ivar < varmax; ++ivar) {
-        PyDict_DelItem((PyObject*)mp, buf[ivar]);
-        Py_DECREF(buf[ivar]);
-      }
-      if (0 < mp->ma_keys->dk_usable)
-        break;
-    }
-
-    // make sure the entry pointer is still valid by re-doing the lookup
-    ep = CPYRT_ORGDICT_LOOKUP(mp, key, hash, value_addr, hashpos);
-
-    // full reset of all lookup functions
-    gDictLookupOrg = CPYRT_GET_DICT_LOOKUP(mp);
-    CPYRT_GET_DICT_LOOKUP(mp) = cpyrtLookDictString; // restore
-  }
-
-  // stopped calling into the reflection system
-  gDictLookupActive = false;
-  return ep;
-}
-
-#endif // PY_VERSION_HEX < 0x030b0000
-
-//----------------------------------------------------------------------------
-static PyObject* SetCppLazyLookup(PyObject*, PyObject* args) {
-#if PY_VERSION_HEX < 0x030b0000
-  // Modify the given dictionary to install the lookup function that also
-  // tries the global C++ namespace before failing. Called on a module's
-  // dictionary, this allows for lazy lookups. This works fine for p3.2 and
-  // earlier, but should not be used beyond interactive code for p3.3 and later
-  // b/c resizing causes the lookup function to revert to the default
-  // (lookdict_unicode_nodummy).
-  PyDictObject* dict = nullptr;
-  if (!PyArg_ParseTuple(args, const_cast<char*>("O!"), &PyDict_Type, &dict))
-    return nullptr;
-
-  CPYRT_GET_DICT_LOOKUP(dict) = cpyrtLookDictString;
-#else
-  // As of py3.11, there is no longer a lookup function pointer in the dict
-  // object to replace. Since this feature is not widely advertised, it's simply
-  // dropped
-  if (PyErr_WarnEx(PyExc_RuntimeWarning,
-                   (char*)"lazy lookup is no longer supported", 1) < 0)
-    return nullptr;
-  (void)args; // avoid warning about unused parameter
-#endif
-
-  Py_RETURN_NONE;
-}
-
-//----------------------------------------------------------------------------
 static PyObject* MakeCppTemplateClass(PyObject* /* self */, PyObject* args) {
   // Create a binding for a templated class instantiation.
 
@@ -461,7 +283,7 @@ static PyObject* MakeCppTemplateClass(PyObject* /* self */, PyObject* args) {
     PyErr_Format(PyExc_TypeError,
                  "Template instantiation failed: '%s' with args: '%s\n'",
                  interop::GetScopedFinalName(tmpl).c_str(),
-                 cpyrt_PyText_AsString(PyObject_Repr(args)));
+                 PyUnicode_AsUTF8(PyObject_Repr(args)));
     return nullptr;
   }
 
@@ -479,8 +301,8 @@ static void* GetCPPInstanceAddress(const char* fname, PyObject* args,
   PyObject* pyname = 0;
   int byref = 0;
   if (PyArg_ParseTupleAndKeywords(args, kwds, const_cast<char*>("O|O!b"),
-                                  GCIA_kwlist, &pyobj, &cpyrt_PyText_Type,
-                                  &pyname, &byref)) {
+                                  GCIA_kwlist, &pyobj, &PyUnicode_Type, &pyname,
+                                  &byref)) {
 
     if (CPPInstance_Check(pyobj)) {
       if (pyname != 0) {
@@ -502,7 +324,7 @@ static void* GetCPPInstanceAddress(const char* fname, PyObject* args,
         Py_XDECREF(pyprop);
 
         PyErr_Format(PyExc_TypeError, "%s is not a valid data member",
-                     cpyrt_PyText_AsString(pyname));
+                     PyUnicode_AsUTF8(pyname));
         return nullptr;
       }
 
@@ -512,9 +334,9 @@ static void* GetCPPInstanceAddress(const char* fname, PyObject* args,
         return ((CPPInstance*)pyobj)->GetObject();
       return &((CPPInstance*)pyobj)->GetObjectRaw();
 
-    } else if (cpyrt_PyText_Check(pyobj)) {
+    } else if (PyUnicode_Check(pyobj)) {
       // special cases for access to the cpyrt API
-      std::string req = cpyrt_PyText_AsString((PyObject*)pyobj);
+      std::string req = PyUnicode_AsUTF8((PyObject*)pyobj);
       if (req == "Instance_AsVoidPtr")
         return (void*)&Instance_AsVoidPtr;
       else if (req == "Instance_FromVoidPtr")
@@ -543,7 +365,7 @@ static PyObject* addressof(PyObject* /* dummy */, PyObject* args,
 
     // nullptr special case
     if (arg0 == gNullPtrObject ||
-        (PyInt_Check(arg0) && PyInt_AsLong(arg0) == 0))
+        (PyLong_Check(arg0) && PyLong_AsLong(arg0) == 0))
       return PyLong_FromLong(0);
 
     // overload if unambiguous
@@ -580,9 +402,9 @@ static PyObject* addressof(PyObject* /* dummy */, PyObject* args,
   if (!PyErr_Occurred()) {
     if (PyTuple_CheckExact(args) && PyTuple_GET_SIZE(args)) {
       PyObject* str = PyObject_Str(PyTuple_GET_ITEM(args, 0));
-      if (str && cpyrt_PyText_Check(str))
+      if (str && PyUnicode_Check(str))
         PyErr_Format(PyExc_TypeError, "unknown object %s",
-                     cpyrt_PyText_AsString(str));
+                     PyUnicode_AsUTF8(str));
       else
         PyErr_Format(PyExc_TypeError, "unknown object at %p",
                      (void*)PyTuple_GET_ITEM(args, 0));
@@ -598,7 +420,7 @@ static PyObject* AsCObject(PyObject* /* unused */, PyObject* args,
   // Return object proxy as an opaque CObject.
   void* addr = GetCPPInstanceAddress("as_cobject", args, kwds);
   if (addr)
-    return cpyrt_PyCapsule_New((void*)addr, nullptr, nullptr);
+    return PyCapsule_New((void*)addr, nullptr, nullptr);
   return nullptr;
 }
 
@@ -693,7 +515,7 @@ static PyObject* BindObject(PyObject*, PyObject* args, PyObject* kwds) {
   // convert 2nd argument first (used for both pointer value and instance cases)
   interop::TCppScope_t cast_type = nullptr;
   PyObject* arg1 = PyTuple_GET_ITEM(args, 1);
-  if (!cpyrt_PyText_Check(arg1)) { // not string, then class
+  if (!PyUnicode_Check(arg1)) { // not string, then class
     if (CPPScope_Check(arg1))
       cast_type = ((CPPClass*)arg1)->fCppType;
     else
@@ -702,8 +524,7 @@ static PyObject* BindObject(PyObject*, PyObject* args, PyObject* kwds) {
     Py_INCREF(arg1);
 
   if (!cast_type && arg1) {
-    cast_type =
-        (interop::TCppScope_t)interop::GetScope(cpyrt_PyText_AsString(arg1));
+    cast_type = (interop::TCppScope_t)interop::GetScope(PyUnicode_AsUTF8(arg1));
     Py_DECREF(arg1);
   }
 
@@ -812,7 +633,7 @@ static PyObject* BindObject(PyObject*, PyObject* args, PyObject* kwds) {
   // not a pre-existing object; get the address and bind
   void* addr = nullptr;
   if (arg0 != gNullPtrObject) {
-    addr = cpyrt_PyCapsule_GetPointer(arg0, nullptr);
+    addr = PyCapsule_GetPointer(arg0, nullptr);
     if (PyErr_Occurred()) {
       PyErr_Clear();
 
@@ -846,6 +667,95 @@ static PyObject* BindObject(PyObject*, PyObject* args, PyObject* kwds) {
 }
 
 //----------------------------------------------------------------------------
+static PyObject* BindValue(PyObject*, PyObject* args, PyObject* kwds) {
+  // Read through the converter for the given type name, at the given address.
+  static const char* kwlist[] = {(char*)"type_name", (char*)"address",
+                                 (char*)"dims", nullptr};
+
+  const char* type_name = nullptr;
+  PyObject* pyaddress = nullptr;
+  PyObject* pydims = nullptr;
+  if (!PyArg_ParseTupleAndKeywords(args, kwds, "sO|O:bind_value",
+                                   (char**)kwlist, &type_name, &pyaddress,
+                                   &pydims))
+    return nullptr;
+
+  void* address = PyLong_AsVoidPtr(pyaddress);
+  if (PyErr_Occurred())
+    return nullptr;
+
+  std::vector<cpyrt::dim_t> dims;
+  if (pydims && pydims != Py_None) {
+    PyObject* seq =
+        PySequence_Fast(pydims, "dims must be a sequence of integers");
+    if (!seq)
+      return nullptr;
+    Py_ssize_t ndim = PySequence_Fast_GET_SIZE(seq);
+    if (ndim == 0) {
+      Py_DECREF(seq);
+      PyErr_SetString(PyExc_ValueError, "dims must be a non-empty sequence");
+      return nullptr;
+    }
+    dims.reserve(ndim);
+    for (Py_ssize_t i = 0; i < ndim; ++i) {
+      cpyrt::dim_t d =
+          (cpyrt::dim_t)PyLong_AsSsize_t(PySequence_Fast_GET_ITEM(seq, i));
+      if (d == (cpyrt::dim_t)-1 && PyErr_Occurred()) {
+        Py_DECREF(seq);
+        return nullptr;
+      }
+      // an UNKNOWN_SIZE view would keep the address of the pointer slot on
+      // our expired stack frame as its data
+      if (d < 0) {
+        Py_DECREF(seq);
+        PyErr_SetString(PyExc_ValueError, "dims entries must be non-negative");
+        return nullptr;
+      }
+      dims.push_back(d);
+    }
+    Py_DECREF(seq);
+
+    // scalar converters ignore dims entirely and would silently read the
+    // pointer bits; only array and pointer type names can take a shape
+    const std::string cpd = cpyrt::TypeManip::compound(type_name);
+    if (cpd != "[]" && cpd != "*") {
+      PyErr_Format(PyExc_TypeError,
+                   "dims given but \'%s\' is not an array or pointer type",
+                   type_name);
+      return nullptr;
+    }
+  }
+
+  // an unresolvable name crashes deeper down in the type lookup instead of
+  // producing a nullptr converter, so validate first
+  const std::string resolvedType = interop::ResolveName(type_name);
+  const std::string baseType =
+      cpyrt::TypeManip::clean_type(resolvedType, false, true);
+  if (!interop::GetType(baseType, /* enable_slow_lookup */ true)) {
+    PyErr_Format(PyExc_TypeError, "no converter available for type \'%s\'",
+                 type_name);
+    return nullptr;
+  }
+
+  cpyrt::Converter* cnv = cpyrt::CreateConverter(
+      type_name, cpyrt::Dimensions((cpyrt::dim_t)dims.size(), dims.data()));
+
+  // an array converter reads through the data pointer, so it wants the
+  // address of that pointer; a scalar converter wants the address of the
+  // value itself
+  PyObject* result =
+      dims.empty() ? cnv->FromMemory(address) : cnv->FromMemory(&address);
+  cpyrt::DestroyConverter(cnv);
+
+  if (!result && !PyErr_Occurred())
+    PyErr_Format(PyExc_TypeError,
+                 "failed to convert a value of type \'%s\' from memory",
+                 type_name);
+
+  return result;
+}
+
+//----------------------------------------------------------------------------
 static PyObject* Move(PyObject*, PyObject* pyobject) {
   // Prepare the given C++ object for moving.
   if (!CPPInstance_Check(pyobject)) {
@@ -869,7 +779,7 @@ static PyObject* AddPythonization(PyObject*, PyObject* args) {
   if (!PyCallable_Check(pythonizor)) {
     PyObject* pystr = PyObject_Str(pythonizor);
     PyErr_Format(PyExc_TypeError, "given \'%s\' object is not callable",
-                 cpyrt_PyText_AsString(pystr));
+                 PyUnicode_AsUTF8(pystr));
     Py_DECREF(pystr);
     return nullptr;
   }
@@ -931,39 +841,24 @@ static PyObject* AddTypeReducer(PyObject*, PyObject* args) {
   Py_RETURN_NONE;
 }
 
-//----------------------------------------------------------------------------
-static PyObject* SetMemoryPolicy(PyObject*, PyObject* args) {
-  // Set the global memory policy, which affects object ownership when objects
-  // are passed as function arguments.
-  PyObject* policy = nullptr;
-  if (!PyArg_ParseTuple(args, const_cast<char*>("O!"), &PyInt_Type, &policy))
-    return nullptr;
-
-  long old = (long)CallContext::sMemoryPolicy;
-
-  long l = PyInt_AS_LONG(policy);
-  if (CallContext::SetMemoryPolicy((CallContext::ECallFlags)l)) {
-    return PyInt_FromLong(old);
+#define DEFINE_CALL_POLICY_TOGGLE(name, flagname)                              \
+  static PyObject* name(PyObject*, PyObject* args) {                           \
+    PyObject* enabled = 0;                                                     \
+    if (!PyArg_ParseTuple(args, const_cast<char*>("O"), &enabled))             \
+      return nullptr;                                                          \
+                                                                               \
+    if (CallContext::SetGlobalPolicy(CallContext::flagname,                    \
+                                     PyObject_IsTrue(enabled))) {              \
+      Py_RETURN_TRUE;                                                          \
+    }                                                                          \
+                                                                               \
+    Py_RETURN_FALSE;                                                           \
   }
 
-  PyErr_Format(PyExc_ValueError, "Unknown policy %ld", l);
-  return nullptr;
-}
-
-//----------------------------------------------------------------------------
-static PyObject* SetGlobalSignalPolicy(PyObject*, PyObject* args) {
-  // Set the global signal policy, which determines whether a jmp address
-  // should be saved to return to after a C++ segfault.
-  PyObject* setProtected = 0;
-  if (!PyArg_ParseTuple(args, const_cast<char*>("O"), &setProtected))
-    return nullptr;
-
-  if (CallContext::SetGlobalSignalPolicy(PyObject_IsTrue(setProtected))) {
-    Py_RETURN_TRUE;
-  }
-
-  Py_RETURN_FALSE;
-}
+DEFINE_CALL_POLICY_TOGGLE(SetHeuristicMemoryPolicy, kUseHeuristics);
+DEFINE_CALL_POLICY_TOGGLE(SetImplicitSmartPointerConversion,
+                          kImplicitSmartPtrConversion);
+DEFINE_CALL_POLICY_TOGGLE(SetGlobalSignalPolicy, kProtected);
 
 //----------------------------------------------------------------------------
 static PyObject* SetOwnership(PyObject*, PyObject* args) {
@@ -971,7 +866,7 @@ static PyObject* SetOwnership(PyObject*, PyObject* args) {
   CPPInstance* pyobj = nullptr;
   PyObject* pykeep = nullptr;
   if (!PyArg_ParseTuple(args, const_cast<char*>("O!O!"), &CPPInstance_Type,
-                        (void*)&pyobj, &PyInt_Type, &pykeep))
+                        (void*)&pyobj, &PyLong_Type, &pykeep))
     return nullptr;
 
   (bool)PyLong_AsLong(pykeep) ? pyobj->PythonOwns() : pyobj->CppOwns();
@@ -1020,8 +915,6 @@ static PyMethodDef gcpyrtMethods[] = {
      METH_VARARGS, (char*)"cppjit internal function"},
     {(char*)"MakeCppTemplateClass", (PyCFunction)MakeCppTemplateClass,
      METH_VARARGS, (char*)"cppjit internal function"},
-    {(char*)"_set_cpp_lazy_lookup", (PyCFunction)SetCppLazyLookup, METH_VARARGS,
-     (char*)"cppjit internal function"},
     {(char*)"_DestroyPyStrings", (PyCFunction)cpyrt::DestroyPyStrings,
      METH_NOARGS, (char*)"cppjit internal function"},
     {(char*)"addressof", (PyCFunction)addressof, METH_VARARGS | METH_KEYWORDS,
@@ -1038,6 +931,8 @@ static PyMethodDef gcpyrtMethods[] = {
     {(char*)"bind_object", (PyCFunction)BindObject,
      METH_VARARGS | METH_KEYWORDS,
      (char*)"Create an object of given type, from given address."},
+    {(char*)"bind_value", (PyCFunction)BindValue, METH_VARARGS | METH_KEYWORDS,
+     (char*)"Read a value of given type, from given address."},
     {(char*)"move", (PyCFunction)Move, METH_O,
      (char*)"Cast the C++ object to become movable."},
     {(char*)"add_pythonization", (PyCFunction)AddPythonization, METH_VARARGS,
@@ -1048,11 +943,20 @@ static PyMethodDef gcpyrtMethods[] = {
      (char*)"Install a type pinning."},
     {(char*)"_add_type_reducer", (PyCFunction)AddTypeReducer, METH_VARARGS,
      (char*)"Add a type reducer."},
-    {(char*)"SetMemoryPolicy", (PyCFunction)SetMemoryPolicy, METH_VARARGS,
-     (char*)"Determines object ownership model."},
+    {(char*)"SetHeuristicMemoryPolicy", (PyCFunction)SetHeuristicMemoryPolicy,
+     METH_VARARGS,
+     (char*)"Set the global memory policy, which affects object ownership when "
+            "objects are passed as function arguments."},
+    {(char*)"SetImplicitSmartPointerConversion",
+     (PyCFunction)SetImplicitSmartPointerConversion, METH_VARARGS,
+     (char*)"Enable or disable the implicit conversion to smart pointers in "
+            "function calls (on by default)."},
     {(char*)"SetGlobalSignalPolicy", (PyCFunction)SetGlobalSignalPolicy,
      METH_VARARGS,
-     (char*)"Trap signals in safe mode to prevent interpreter abort."},
+     (char*)"Set the global signal policy, which determines whether a jmp "
+            "address should be saved to return to after a "
+            "C++ segfault. In practical terms: trap signals in safe mode to "
+            "prevent interpreter abort."},
     {(char*)"SetOwnership", (PyCFunction)SetOwnership, METH_VARARGS,
      (char*)"Modify held C++ object ownership."},
     {(char*)"AddSmartPtrType", (PyCFunction)AddSmartPtrType, METH_VARARGS,
@@ -1093,19 +997,6 @@ extern "C" PyObject* PyInit_libcppjit() {
   // load commonly used python strings
   if (!cpyrt::CreatePyStrings())
     return nullptr;
-
-    // setup interpreter
-
-#if PY_VERSION_HEX < 0x030b0000
-  // prepare for laziness (the insert is needed to capture the most generic
-  // lookup function, just in case ...)
-  PyObject* dict = PyDict_New();
-  PyObject* notstring = PyInt_FromLong(5);
-  PyDict_SetItem(dict, notstring, notstring);
-  Py_DECREF(notstring);
-  gDictLookupOrg = (dict_lookup_func)((PyDictObject*)dict)->ma_keys->dk_lookup;
-  Py_DECREF(dict);
-#endif // PY_VERSION_HEX < 0x030b0000
 
   // setup this module
   gThisModule = PyModule_Create(&moduledef);
@@ -1196,12 +1087,6 @@ extern "C" PyObject* PyInit_libcppjit() {
   gAbrtException =
       PyErr_NewException((char*)"cppjit.ll.AbortSignal", cppfatal, nullptr);
   PyModule_AddObject(gThisModule, (char*)"AbortSignal", gAbrtException);
-
-  // policy labels
-  PyModule_AddObject(gThisModule, (char*)"kMemoryHeuristics",
-                     PyInt_FromLong((int)CallContext::kUseHeuristics));
-  PyModule_AddObject(gThisModule, (char*)"kMemoryStrict",
-                     PyInt_FromLong((int)CallContext::kUseStrict));
 
   // gbl namespace is injected in cppjit.py
 

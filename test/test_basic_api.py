@@ -1,9 +1,10 @@
+import os
 import shutil
 import tempfile
 
 import py
-from pytest import mark, raises
-from support import IS_MAC, setup_make
+from pytest import raises
+from support import needs_dictionary, setup_make, soext
 
 # reuse the example01
 currpath = py.path.local(__file__).dirpath()
@@ -11,11 +12,11 @@ test_dct = str(currpath.join("cpp/example01Dict"))
 
 
 def setup_module(mod):
-    setup_make("example01")
+    # only test03_add_library_path loads the dictionary
+    setup_make("example01", optional=True)
 
 
 class TestBASICAPI:
-    @mark.xfail(IS_MAC, reason="evaluate is broken on macos")
     def test01_evaluate(self):
         import cppjit
 
@@ -34,33 +35,49 @@ class TestBASICAPI:
         x = 42
         assert cppjit.evaluate(str(x)) == x
 
-    @mark.xfail(
-        IS_MAC,
-        reason="unidentified IsDebugOutputEnabled issue on macos, also failing in test_fragile",
-    )
     def test02_cppdef(self):
         import cppjit
 
         assert cppjit.cppdef("namespace test02_NS { int x = 42; }")
         assert cppjit.gbl.test02_NS.x == 42
 
+    @needs_dictionary
     def test03_add_library_path(self):
         import cppjit
 
         with raises(OSError, match="No such directory"):
             cppjit.add_library_path("not/a/real/path")
 
-        with tempfile.TemporaryDirectory() as tpath:
+        # once loaded, the copied library is mapped into the process; Windows
+        # then refuses to delete it, which would fail the cleanup
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tpath:
             cppjit.add_library_path(tpath)
 
             # now we should actually see if load library can follow this...
             # first, try to load without moving to directory...
             with raises(RuntimeError, match="Could not load library"):
-                cppjit.load_library("test.so")
+                cppjit.load_library("test" + soext)
 
             # then copy to our rpath, and make sure it can be loaded now
-            shutil.copyfile(test_dct + ".so", tpath + "/test.so")
-            cppjit.load_library("test.so")
+            shutil.copyfile(test_dct + soext, tpath + "/test" + soext)
+            cppjit.load_library("test" + soext)
+
+    def test03a_load_library_failure_reason(self):
+        """load_library reports the loader's failure reason"""
+
+        import cppjit
+
+        with tempfile.TemporaryDirectory() as tpath:
+            missing = os.path.join(tpath, "libdlerrmissing.so")
+            with raises(RuntimeError, match="libdlerrmissing.*library not found"):
+                cppjit.load_library(missing)
+
+            # a truncated ELF header: found on disk, rejected before dlopen
+            invalid = os.path.join(tpath, "libdlerrinvalid.so")
+            with open(invalid, "wb") as out:
+                out.write(b"\x7fELF" + b"\0" * 12)
+            with raises(RuntimeError, match="libdlerrinvalid"):
+                cppjit.load_library(invalid)
 
     def test04_add_include_path(self):
         import cppjit

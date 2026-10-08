@@ -3,6 +3,7 @@ import sys
 
 from pytest import mark, raises, skip
 from support import (
+    CAN_JIT_STD_FILESYSTEM,
     IS_CLANG_REPL,
     IS_CLING,
     IS_MAC,
@@ -30,7 +31,7 @@ class TestREGRESSION:
 
         pydoc.pager = stringpager
 
-    @mark.xfail
+    @mark.xfail(reason="pydoc rendering of KDcrawIface fails")
     def test01_kdcraw(self):
         """Doc strings for KDcrawIface (used to crash)."""
 
@@ -220,7 +221,7 @@ class TestREGRESSION:
 
         assert sys.getrefcount(x) == old_refcnt
 
-    @mark.xfail(run=False, condition=IS_MAC and IS_CLING, reason="Crahes on OSX-Cling")
+    @mark.xfail(condition=IS_MAC and IS_CLING, run=False, reason="Crahes on OSX-Cling")
     def test08_typedef_identity(self):
         """Nested typedefs should retain identity"""
 
@@ -262,7 +263,7 @@ class TestREGRESSION:
         cppjit.cppdef(code)
         cppjit.gbl.some_foo_calling_python()
 
-    @mark.xfail(run=False, condition=IS_CLING, reason="Crashes on Cling")
+    @mark.xfail(condition=IS_CLING, run=False, reason="Crashes on Cling")
     def test10_enum_in_global_space(self):
         """Enum declared in search.h did not appear in global space"""
 
@@ -383,7 +384,6 @@ class TestREGRESSION:
         f = sds.Foo()
         assert f.bar.x == 5
 
-    @mark.xfail(condition=IS_MAC, reason="Fails on OSX")
     def test15_vector_vs_initializer_list(self):
         """Prefer vector in template and initializer_list in formal arguments"""
 
@@ -556,7 +556,6 @@ class TestREGRESSION:
 
         assert obj.getter() == "c"
 
-    @mark.xfail(condition=IS_MAC, reason="Fails on OS X")
     def test21_temporaries_and_vector(self):
         """Extend a life line to references into a vector if needed"""
 
@@ -569,7 +568,6 @@ class TestREGRESSION:
         l = [e for e in cppjit.gbl.get_some_temporary_vector()]
         assert l == ["x", "y", "z"]
 
-    @mark.xfail(condition=IS_MAC, reason="Fails on OSX")
     def test22_initializer_list_and_temporary(self):
         """Conversion rules when selecting intializer_list v.s. temporary"""
 
@@ -824,8 +822,8 @@ class TestREGRESSION:
         assert not null
 
     @mark.xfail(
-        run=False,
         condition=(IS_CLING and IS_MAC) or IS_MAC_ARM,
+        run=False,
         reason="Dispatcher fix #53 introduces canonical types with std:: namespace that introduces OS X exceptions similar to test_stltypes",
     )
     def test29_callback_pointer_values(self):
@@ -1042,10 +1040,6 @@ class TestREGRESSION:
             cppjit.gbl.std.get[0](cppjit.gbl.property_types.run_as[pt_type]()) == 20.0
         )
 
-    @mark.xfail(
-        run=False,
-        reason="Crashes on ClangRepl with 'toString not implemented', and on Cling",
-    )
     def test34_print_empty_collection(self):
         """Print empty collection through Cling"""
 
@@ -1055,9 +1049,11 @@ class TestREGRESSION:
         v = cppjit.gbl.std.vector[int]()
         str(v)
 
-    @mark.xfail(
-        run=IS_CLANG_REPL, condition=IS_MAC or IS_CLING, reason="Crashes on Cling"
+    @mark.skipif(
+        not CAN_JIT_STD_FILESYSTEM,
+        reason="std::filesystem is unresolvable in the JIT on libstdc++ < 9",
     )
+    @mark.xfail(condition=IS_CLING, run=False, reason="Crashes on Cling")
     def test35_filesytem(self):
         """Static path object used to crash on destruction"""
 
@@ -1132,7 +1128,7 @@ class TestREGRESSION:
             assert cppjit.addressof(res) == cppjit.addressof(arr)
 
     @mark.xfail(
-        run=False, condition=(IS_MAC and IS_CLING), reason="Crashes on OS X Cling"
+        condition=IS_MAC and IS_CLING, run=False, reason="Crashes on OS X Cling"
     )
     def test38_char16_arrays(self):
         """Access to fixed-size char16 arrays as data members"""
@@ -1194,7 +1190,6 @@ class TestREGRESSION:
             assert ai.name[:5] == "hello"
         cppjit.ll.array_delete(aa)
 
-    @mark.xfail(condition=IS_MAC, reason="Fails on OSX")
     def test39_vector_of_pointers_conversion(self):
         """vector<T*>'s const T*& used to be T**, now T*"""
 
@@ -1270,7 +1265,7 @@ class TestREGRESSION:
         assert type(list(vec2)[0]) == Base2
         assert len([d for d in vec3 if isinstance(d, Derived3)]) == 1
 
-    @mark.xfail(run=False, condition=not IS_CLANG_REPL, reason="Crashes with Cling")
+    @mark.xfail(condition=not IS_CLANG_REPL, run=False, reason="Crashes with Cling")
     def test40_explicit_initializer_list(self):
         """Construct and pass an explicit initializer list"""
 
@@ -1390,9 +1385,7 @@ class TestREGRESSION:
         try:
             # The scope with the heuristic memory policy is in a try-except-finally block
             # to ensure the memory policy is always reset.
-            old_memory_policy = cppjit._backend.SetMemoryPolicy(
-                cppjit._backend.kMemoryHeuristics
-            )
+            old_memory_policy = cppjit._backend.SetHeuristicMemoryPolicy(True)
 
             # Validate the intended behavior for different argument types:
             #   const ref : caller keeps ownership
@@ -1419,7 +1412,7 @@ class TestREGRESSION:
         except:
             raise  # rethrow the exception
         finally:
-            cppjit._backend.SetMemoryPolicy(old_memory_policy)
+            cppjit._backend.SetHeuristicMemoryPolicy(old_memory_policy)
 
     @mark.xfail(condition=IS_MAC, reason="Fails on OS X")
     def test45_typedef_resolution(self):
@@ -1439,8 +1432,8 @@ class TestREGRESSION:
         assert cppjit.gbl.cppjit.interop.ResolveName("cmy_custom_type_t") == "const int"
 
     @mark.xfail(
-        run=False,
         condition=IS_MAC_ARM,
+        run=False,
         reason="Crashes with exception not being caught on Apple Silicon",
     )
     def test46_exception_narrowing(self):
@@ -1637,3 +1630,100 @@ class TestREGRESSION:
 
         # ...nor leave the interpreter unable to compile a later call wrapper
         assert ns.probe(41) == 42
+
+    def test52_no_cpp_name_for_template_arg(self):
+        """Template arguments with no C++ equivalent raise TypeError"""
+
+        import cppjit
+
+        # a lambda has a __name__ ("<lambda>") that resolves to no C++ type
+        with raises(TypeError):
+            cppjit.gbl.std.vector[lambda: None]
+
+        with raises(TypeError):
+            cppjit.gbl.std.vector[object()]
+
+    def test53_str_fallback_without_ostream_insertion(self):
+        """str() of an instance with no operator<< used to crash"""
+
+        import cppjit
+
+        cppjit.cppdef("namespace StrFallback { struct Bare { int x; }; }")
+
+        bare = cppjit.gbl.StrFallback.Bare()
+
+        # no ostream inserter and no usable pretty printer, so op_str must
+        # degrade to the generic repr
+        assert str(bare) == repr(bare)
+        assert "Bare object at" in str(bare)
+
+    def test54_enum_arg_overload_priority(self):
+        """Enum overloads resolve like C++ for both int and enum arguments"""
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        namespace EnumArgPriority {
+            enum Color { Red = 0, Green = 1, Blue = 2 };
+            int pick(Color)        { return 1; }
+            int pick(unsigned int) { return 2; }
+            int only_enum(Color c) { return 10 + (int)c; }
+            int only_uint(unsigned int v) { return 20 + (int)v; }
+        }""")
+
+        ns = cppjit.gbl.EnumArgPriority
+
+        # C++ has no implicit int -> enum conversion
+        assert ns.pick(2) == 2
+
+        # an enum instance is an exact match for its own enum overload
+        assert ns.pick(ns.Color.Green) == 1
+
+        # an enum parameter is only deprioritized, never unusable
+        assert ns.only_enum(2) == 12
+
+        # an enum instance still converts to an integer parameter
+        assert ns.only_uint(ns.Color.Blue) == 22
+
+    def test55_enum_arg_standard_conversion(self):
+        """An enum instance converts to int before any class construction"""
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        namespace EnumArgConversion {
+            enum Color { Red = 0, Green = 1, Blue = 2 };
+            struct FromInt    { FromInt(int v) : v(v) {} int v; };
+            struct FromEnum   { FromEnum(Color c) : v((int)c) {} int v; };
+            struct FromDouble { FromDouble(double d) : v((int)d) {} int v; };
+            int via_int(FromInt f)   { return f.v; }
+            int via_enum(FromEnum f) { return f.v; }
+            int pick(int i)          { return i; }
+            int pick(FromDouble f)   { return -f.v; }
+        }""")
+
+        ns = cppjit.gbl.EnumArgConversion
+
+        # implicit construction from an enum instance, through int and enum
+        assert ns.via_int(ns.Color.Blue) == 2
+        assert ns.via_enum(ns.Color.Green) == 1
+
+        # a standard conversion outranks a user-defined one, as in C++
+        assert ns.pick(ns.Color.Blue) == 2
+
+    def test56_enum_arg_typedefed_underlying_type(self):
+        """An enum whose underlying type is spelled through a typedef converts"""
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        #include <cstdint>
+        namespace EnumArgTypedefUnderlying {
+            struct S { enum L : std::int32_t { A = 1, B = 5 }; };
+            int pick(S::L l) { return (int)l; }
+        }""")
+
+        ns = cppjit.gbl.EnumArgTypedefUnderlying
+
+        assert ns.pick(ns.S.A) == 1
+        assert ns.pick(ns.S.B) == 5

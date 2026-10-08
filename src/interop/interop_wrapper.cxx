@@ -82,12 +82,14 @@ static inline bool is_integral(std::string& s) {
 
 struct InterOpPaths {
   std::string Library;
-  std::string IncludeDir;
-  std::string ClangIncludeDir; // empty when the bundled headers are absent
+  std::vector<std::string> IncludeDirs;
+  std::string ClangIncludeDir; // empty when no usable resource dir is known
 };
 
-// One relative layout, two anchors: prefer CppInterOp next to our own load
-// location so wheels relocate; fall back to the build-time install prefix.
+// One set of coordinates, two anchors: prefer CppInterOp next to our own
+// load location so wheels relocate; fall back to the build-time install
+// prefix. An absolute coordinate (an external CppInterOp) replaces the
+// anchor in the join ([fs.path.append]).
 static InterOpPaths cppinterop_paths() {
   std::filesystem::path anchor = CPPINTEROP_INSTALL_PREFIX;
 #ifndef _WIN32
@@ -100,16 +102,24 @@ static InterOpPaths cppinterop_paths() {
       anchor = here;
   }
 #endif
-  InterOpPaths Paths{(anchor / CPPINTEROP_LIBRARY).string(),
-                     (anchor / CPPINTEROP_INCLUDE_DIR).string(),
-                     {}};
-  // The builtin headers of the build clang ship with every installed
-  // package (see the CMake install rule); a raw build tree has none and
-  // falls back to resource-dir detection.
-  const std::filesystem::path bundled = anchor / CPPJIT_CLANG_INCLUDE_DIR;
-  std::error_code ec;
-  if (std::filesystem::exists(bundled / "include", ec))
-    Paths.ClangIncludeDir = bundled.string();
+  InterOpPaths Paths;
+  Paths.Library = (anchor / CPPINTEROP_LIBRARY).string();
+  // The include coordinate may carry several ':'-separated directories (an
+  // external CppInterOp build tree splits source and generated headers).
+  std::istringstream includeSpec{CPPINTEROP_INCLUDE_DIR};
+  for (std::string dir; std::getline(includeSpec, dir, ':');)
+    if (!dir.empty())
+      Paths.IncludeDirs.push_back((anchor / dir).string());
+  // A bundled install ships the build clang's builtin headers (see the
+  // CMake install rule); an empty coordinate or a missing directory falls
+  // back to resource-dir detection.
+  const std::string clangSpec = CPPJIT_CLANG_INCLUDE_DIR;
+  if (!clangSpec.empty()) {
+    const std::filesystem::path bundled = anchor / clangSpec;
+    std::error_code ec;
+    if (std::filesystem::exists(bundled / "include", ec))
+      Paths.ClangIncludeDir = bundled.string();
+  }
   return Paths;
 }
 
@@ -149,8 +159,11 @@ acquireOrCreateInterpreter(const InterOpPaths& Paths) {
   // argv: in CUDA mode every input is also parsed by a device-side
   // compiler instance that is sealed inside CreateInterpreter, and
   // Cpp::AddIncludePath after the fact reaches only the host side.
-  const std::string interopInclude = "-I" + Paths.IncludeDir;
-  args.push_back(interopInclude.c_str());
+  std::vector<std::string> includeFlags;
+  for (const std::string& dir : Paths.IncludeDirs)
+    includeFlags.push_back("-I" + dir);
+  for (const std::string& flag : includeFlags)
+    args.push_back(flag.c_str());
   // CPPJIT_ENABLE_CUDA=1 makes the interpreter a CUDA host/device pair
   // (clang-repl --cuda). CppInterOp detects the toolkit and the live
   // GPU's architecture itself; CPPJIT_CUDA_PATH and CPPJIT_OFFLOAD_ARCH
@@ -196,7 +209,7 @@ acquireOrCreateInterpreter(const InterOpPaths& Paths) {
   return Cpp::CreateInterpreter(args, gpuArgs);
 }
 
-static void configureInterpreter() {
+static void configureInterpreter(const InterOpPaths& Paths) {
   std::set<std::string> bi{g_builtins};
   for (const auto& name : bi) {
     for (const char* a : {"*", "&", "*&", "[]", "*[]"})
@@ -218,10 +231,12 @@ static void configureInterpreter() {
     Cpp::Process(s.str().c_str());
   }
 
+  for (const std::string& dir : Paths.IncludeDirs)
+    Cpp::AddIncludePath(dir.c_str());
   Cpp::LoadLibrary("libstdc++", /* lookup= */ true);
 }
 
-static void preloadHeaders() {
+static bool preloadHeaders() {
   const char* code = "#include <algorithm>\n"
                      "#include <numeric>\n"
                      "#include <complex>\n"
@@ -246,7 +261,7 @@ static void preloadHeaders() {
                      "#include <optional>\n"
                      "#endif\n"
                      "#include <CppInterOp/Dispatch.h>\n";
-  Cpp::Process(code);
+  return Cpp::Process(code) == 0;
 }
 
 static void defineRuntimeHelpers() {
@@ -284,11 +299,17 @@ extern "C" int LoadCppInterOp() {
       return;
 
     if (!acquireOrCreateInterpreter(Paths)) {
-      std::cerr << "[cppjit-backend] Failed to create the interpreter\n";
+      std::cerr << "[cppjit] Failed to create the C++ interpreter" << std::endl;
       return;
     }
-    configureInterpreter();
-    preloadHeaders();
+    configureInterpreter(Paths);
+    if (!preloadHeaders()) {
+      std::cerr << "[cppjit] The C++ standard headers do not parse, see the "
+                   "diagnostic above. Install a C++ toolchain such as g++ or "
+                   "the conda package cxx-compiler."
+                << std::endl;
+      return;
+    }
     defineRuntimeHelpers();
 
     Loaded = 1;
@@ -766,8 +787,14 @@ interop::TCppType_t interop::GetTypeFromScope(TCppScope_t klass) {
 }
 
 interop::TCppScope_t interop::GetGlobalScope() {
-  std::lock_guard<std::recursive_mutex> Lock(InterOpMutex);
-  return Cpp::GetGlobalScope();
+  // The global scope (the first declaration of the interpreter's translation
+  // unit) never changes, but this is called on every method call that
+  // receives 'self' as its first argument, so avoid the lock and the query.
+  static const TCppScope_t s_global = [] {
+    std::lock_guard<std::recursive_mutex> Lock(InterOpMutex);
+    return Cpp::GetGlobalScope();
+  }();
+  return s_global;
 }
 
 bool interop::IsTemplate(TCppScope_t handle) { return Cpp::IsTemplate(handle); }
@@ -811,6 +838,8 @@ size_t interop::SizeOf(TCppScope_t klass) {
 }
 
 size_t interop::SizeOfType(TCppType_t klass) {
+  if (!klass)
+    return 0;
   std::lock_guard<std::recursive_mutex> Lock(InterOpMutex);
   return Cpp::GetSizeOfType(klass);
 }
@@ -1017,7 +1046,10 @@ void interop::CallDestructor(TCppScope_t scope, TCppObject_t self) {
 interop::TCppObject_t interop::CallO(TCppMethod_t method, TCppObject_t self,
                                      size_t nargs, void* args,
                                      TCppType_t result_type) {
-  void* obj = ::operator new(interop::SizeOfType(result_type));
+  size_t size = interop::SizeOfType(result_type);
+  if (size == 0)
+    return TCppObject_t{}; // unsizable return type; the caller reports
+  void* obj = ::operator new(size);
   if (WrapperCall(method, nargs, args, self.data, obj))
     return (TCppObject_t)obj;
   ::operator delete(obj);
@@ -1224,16 +1256,31 @@ ptrdiff_t interop::GetBaseOffset(TCppScope_t derived, TCppScope_t base,
 }
 
 // method/function reflection information ------------------------------------
+// A deleted overload is not callable, and leaving it in the set adds a
+// spurious conversion error to every failed-call report.
+static void
+remove_deleted_methods(std::vector<interop::TCppMethod_t>& methods) {
+  methods.erase(std::remove_if(methods.begin(), methods.end(),
+                               [](interop::TCppMethod_t m) {
+                                 return Cpp::IsFunctionDeleted(m);
+                               }),
+                methods.end());
+}
+
 void interop::GetClassMethods(TCppScope_t scope,
                               std::vector<interop::TCppMethod_t>& methods) {
   std::lock_guard<std::recursive_mutex> Lock(InterOpMutex);
   Cpp::GetClassMethods(scope, methods);
+  remove_deleted_methods(methods);
 }
 
 std::vector<interop::TCppMethod_t>
 interop::GetMethodsFromName(TCppScope_t scope, const std::string& name) {
   std::lock_guard<std::recursive_mutex> Lock(InterOpMutex);
-  return Cpp::GetFunctionsUsingName(scope, name);
+  std::vector<interop::TCppMethod_t> methods =
+      Cpp::GetFunctionsUsingName(scope, name);
+  remove_deleted_methods(methods);
+  return methods;
 }
 
 std::string interop::GetName(TCppScope_t method) {
@@ -1305,8 +1352,8 @@ std::string interop::GetMethodArgDefault(TCppMethod_t method,
 }
 
 interop::TCppIndex_t
-interop::CompareMethodArgType(TCppMethod_t /*method*/, TCppIndex_t iarg,
-                              const std::string& req_type) {
+interop::CompareMethodArgType(TCppMethod_t /*method*/, TCppIndex_t /*iarg*/,
+                              const std::string& /*req_type*/) {
   // if (method) {
   //     TFunction* f = m2f(method);
   //     TMethodArg* arg = (TMethodArg
@@ -1874,7 +1921,7 @@ interop::TCppType_t interop::GetEnumConstantType(TCppScope_t scope) {
   return Cpp::GetEnumConstantType(Cpp::GetUnderlyingScope(scope));
 }
 
-interop::TCppIndex_t interop::GetEnumDataValue(TCppScope_t scope) {
+long long interop::GetEnumDataValue(TCppScope_t scope) {
   std::lock_guard<std::recursive_mutex> Lock(InterOpMutex);
   return Cpp::GetEnumConstantValue(scope);
 }

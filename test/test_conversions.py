@@ -98,7 +98,7 @@ class TestCONVERSIONS:
         assert CC.s_count == 0
 
     @mark.xfail(
-        run=IS_CLANG_REPL, condition=IS_MAC or IS_CLING, reason="Crashes on Cling"
+        condition=IS_MAC or IS_CLING, run=IS_CLANG_REPL, reason="Crashes on Cling"
     )
     def test04_implicit_conversion_from_tuple(self):
         """Allow implicit conversions from tuples as arguments {}-like"""
@@ -138,3 +138,46 @@ class TestCONVERSIONS:
         assert ns.Test1()
         assert ns.Test2(True)
         assert not ns.Test2(False)
+
+    def test07_mutable_voidp_reference(self):
+        """An object can be passed through a non-const void*& argument"""
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        namespace VoidPtrRef {
+            struct Obj { int v = 5; };
+            bool is_same(void*& p, Obj* o) { return p == (void*)o; }
+        }""")
+
+        ns = cppjit.gbl.VoidPtrRef
+        o = ns.Obj()
+
+        assert ns.is_same(o, o)
+
+
+class TestSMARTPTRPOLICY:
+    def test01_implicit_smartptr_conversion_policy(self):
+        """Wrapping an object into a smart-pointer argument is off by default"""
+
+        import cppjit
+        from pytest import raises
+
+        cppjit.cppdef("""\
+        #include <memory>
+        namespace SPPolicy {
+            struct Payload { int x = 5; };
+            int take(std::shared_ptr<Payload> p) { return p ? p->x : -1; }
+        }""")
+
+        obj = cppjit.gbl.SPPolicy.Payload()
+        with raises(TypeError):
+            cppjit.gbl.SPPolicy.take(obj)
+
+        # a smart pointer passes regardless of the policy
+        sp = cppjit.gbl.std.make_shared["SPPolicy::Payload"]()
+        assert cppjit.gbl.SPPolicy.take(sp) == 5
+
+        # the toggle is exposed and returns the prior setting
+        assert cppjit.libcppjit.SetImplicitSmartPointerConversion(True) is False
+        assert cppjit.libcppjit.SetImplicitSmartPointerConversion(False) is True

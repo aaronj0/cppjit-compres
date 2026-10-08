@@ -3,7 +3,6 @@ import os
 import py
 from pytest import mark, raises, skip
 from support import (
-    IS_CLANG_DEBUG,
     IS_CLING,
     IS_LINUX_ARM,
     IS_MAC,
@@ -27,10 +26,6 @@ class TestCROSSINHERITANCE:
 
         cls.example01 = cppjit.load_reflection_info(cls.test_dct)
 
-    @mark.xfail(
-        run=not (IS_CLANG_DEBUG or IS_CLING),
-        reason="Crashes with ClangRepl with 'toString not implemented' and on Cling",
-    )
     def test01_override_function(self):
         """Test ability to override a simple function"""
 
@@ -52,7 +47,7 @@ class TestCROSSINHERITANCE:
         assert Base1.call_get_value(Base1()) == 42
         assert Base1.call_get_value(Derived()) == 13
 
-    @mark.xfail(run=False, condition=IS_LINUX_ARM, reason="Crashes pytest on Linux ARM")
+    @mark.xfail(condition=IS_LINUX_ARM, run=False, reason="Crashes pytest on Linux ARM")
     def test02_constructor(self):
         """Test constructor usage for derived classes"""
 
@@ -90,7 +85,7 @@ class TestCROSSINHERITANCE:
         assert d.get_value() == 29
         assert Base1.call_get_value(d) == 29
 
-    @mark.xfail(run=False, condition=IS_LINUX_ARM, reason="Crashes pytest on Linux ARM")
+    @mark.xfail(condition=IS_LINUX_ARM, run=False, reason="Crashes pytest on Linux ARM")
     def test03_override_function_abstract_base(self):
         """Test ability to override a simple function with an abstract base"""
 
@@ -149,8 +144,8 @@ class TestCROSSINHERITANCE:
         assert CX.IBase2.call_get_value(c4) == 77
 
     @mark.xfail(
-        run=False,
         condition=IS_MAC_ARM,
+        run=False,
         reason="Crashes with exception not being caught on Apple Silicon",
     )
     def test04_arguments(self):
@@ -193,7 +188,7 @@ class TestCROSSINHERITANCE:
         d2 = Derived2()
         assert Base1.sum_pass_value(d2) == 12 + 4 * d2.m_int
 
-    @mark.xfail(run=False, condition=IS_LINUX_ARM, reason="Crashes pytest on Linux ARM")
+    @mark.xfail(condition=IS_LINUX_ARM, run=False, reason="Crashes pytest on Linux ARM")
     def test05_override_overloads(self):
         """Test ability to override overloaded functions"""
 
@@ -215,7 +210,7 @@ class TestCROSSINHERITANCE:
         assert d.sum_all(-7, -5) == 1
         assert Base1.call_sum_all(d, -7, -5) == 1
 
-    @mark.xfail(run=False, condition=IS_LINUX_ARM, reason="Crashes pytest on Linux ARM")
+    @mark.xfail(condition=IS_LINUX_ARM, run=False, reason="Crashes pytest on Linux ARM")
     def test06_const_methods(self):
         """Declared const methods should keep that qualifier"""
 
@@ -239,13 +234,13 @@ class TestCROSSINHERITANCE:
         assert CX.IBase4.call_get_value(c1) == 17
         assert CX.IBase4.call_get_value(c2) == 27
 
-    @mark.xfail(
-        run=False, condition=IS_LINUX_ARM, reason="Fails with ModuleNotFound error"
-    )
     def test07_templated_base(self):
         """Derive from a base class that is instantiated from a template"""
 
-        from cppjit.gbl.CrossInheritance import TBase1, TBase1_I, TDerived1
+        import cppjit
+
+        CX = cppjit.gbl.CrossInheritance
+        TBase1, TBase1_I, TDerived1 = CX.TBase1, CX.TBase1_I, CX.TDerived1
 
         class TPyDerived1(TBase1_I):
             def __init__(self):
@@ -264,7 +259,7 @@ class TestCROSSINHERITANCE:
         p1 = TPyDerived1()
         assert p1.get_value() == 13
 
-    @mark.xfail(run=not IS_MAC_ARM, condition=IS_MAC, reason="Fails on OS X")
+    @mark.xfail(condition=IS_MAC_ARM, run=False, reason="Fails on macOS arm")
     def test08_error_handling(self):
         """Python errors should propagate through wrapper"""
 
@@ -310,8 +305,8 @@ class TestCROSSINHERITANCE:
         assert os.path.basename(__file__) in res
 
     @mark.xfail(
-        run=not IS_MAC_ARM,
         condition=IS_MAC_ARM,
+        run=False,
         reason="Crashes with exception not being caught on Apple Silicon",
     )
     def test09_interface_checking(self):
@@ -380,7 +375,7 @@ class TestCROSSINHERITANCE:
         gc.collect()
         assert CB.s_count == 0 + start_count
 
-    @mark.xfail(run=False, condition=IS_CLING, reason="Crashes on Cling")
+    @mark.xfail(condition=IS_CLING, run=False, reason="Crashes on Cling")
     def test11_python_in_make_shared(self):
         """Usage of Python derived objects with std::make_shared"""
 
@@ -447,7 +442,7 @@ class TestCROSSINHERITANCE:
         gc.collect()
         assert CB.s_count == 0 + start_count
 
-    @mark.xfail(run=False, condition=IS_VALGRIND, reason="Valgrind issue")
+    @mark.xfail(condition=IS_VALGRIND, run=False, reason="Valgrind issue")
     def test12_python_shared_ptr_memory(self):
         """Usage of Python derived objects with std::shared_ptr"""
 
@@ -564,7 +559,7 @@ class TestCROSSINHERITANCE:
         assert m.get_data() == 42
         assert m.get_data_v() == 42
 
-    @mark.xfail(run=False, condition=IS_LINUX_ARM, reason="Crashes pytest on Linux ARM")
+    @mark.xfail(condition=IS_LINUX_ARM, run=False, reason="Crashes pytest on Linux ARM")
     def test15_object_returns(self):
         """Return of C++ objects from overridden functions"""
 
@@ -632,7 +627,6 @@ class TestCROSSINHERITANCE:
         assert not not new_obj
         assert new_obj.whoami() == "PyDerived4"
 
-    @mark.xfail(condition=IS_MAC, reason="Fails on OS X")
     def test16_cctor_access_controlled(self):
         """Python derived class of C++ class with access controlled cctor"""
 
@@ -675,7 +669,6 @@ class TestCROSSINHERITANCE:
             obj = PyDerived()
             assert ns.callit(obj) == "PyDerived"
 
-    @mark.xfail(condition=IS_MAC, reason="Fails on OS X")
     def test17_deep_hierarchy(self):
         """Test a deep Python hierarchy with pure virtual functions"""
 
@@ -722,7 +715,6 @@ class TestCROSSINHERITANCE:
         assert obj.whoami() == "PyDerived4"
         assert ns.callit(obj) == "PyDerived4"
 
-    @mark.xfail(condition=IS_MAC, reason="Fails on OS X")
     def test18_abstract_hierarchy(self):
         """Hierarchy with abstract classes"""
 
@@ -799,7 +791,7 @@ class TestCROSSINHERITANCE:
             def abstract1(self):
                 return ns.Result(1)
 
-    @mark.xfail(run=False, condition=IS_LINUX_ARM, reason="Crashes pytest on Linux ARM")
+    @mark.xfail(condition=IS_LINUX_ARM, run=False, reason="Crashes pytest on Linux ARM")
     def test20_basic_multiple_inheritance(self):
         """Basic multiple inheritance"""
 
@@ -879,8 +871,8 @@ class TestCROSSINHERITANCE:
         assert a.m_3 == 67
 
     @mark.xfail(
-        run=False,
         condition=IS_LINUX_ARM and IS_VALGRIND,
+        run=False,
         reason="Crashes with Valgrind on Linux ARM",
     )
     def test21_multiple_inheritance_with_constructors(self):
@@ -971,8 +963,8 @@ class TestCROSSINHERITANCE:
         assert a.m_3 == -11
 
     @mark.xfail(
-        run=False,
         condition=IS_LINUX_ARM and IS_VALGRIND,
+        run=False,
         reason="Crashes with Valgrind on Linux ARM",
     )
     def test22_multiple_inheritance_with_defaults(self):
@@ -1095,7 +1087,6 @@ class TestCROSSINHERITANCE:
         assert a.return_const().m_value == "abcdef"
         assert ns.callit(a).m_value == "abcdef"
 
-    @mark.xfail(condition=IS_MAC, reason="Fails on OS X")
     def test24_non_copyable(self):
         """Inheriting from a non-copyable base class"""
 
@@ -1350,8 +1341,8 @@ class TestCROSSINHERITANCE:
             assert inst.fun2() == inst.fun1()
 
     @mark.xfail(
-        run=False,
         condition=IS_LINUX_ARM and IS_VALGRIND,
+        run=False,
         reason="Crashes with Valgrind on Linux ARM",
     )
     def test29_cross_deep_multi(self):
@@ -1603,8 +1594,8 @@ class TestCROSSINHERITANCE:
         assert ns.Component.get_count() == 0
 
     @mark.xfail(
-        run=False,
         condition=IS_LINUX_ARM and IS_VALGRIND,
+        run=False,
         reason="Crashes with Valgrind on Linux ARM",
     )
     def test32_by_value_arguments(self):
@@ -1681,7 +1672,6 @@ class TestCROSSINHERITANCE:
         c = C()
         assert c.func() == 3
 
-    @mark.xfail
     def test34_no_ctors_in_base(self):
         """Base classes with no constructors"""
 
@@ -1800,7 +1790,6 @@ class TestCROSSINHERITANCE:
         del o1
         assert Derived.was_py_deleted == True
 
-    @mark.xfail(condition=IS_MAC, reason="Fails on OSX")
     def test37_deep_tree(self):
         """Find overridable methods deep in the tree"""
 
@@ -1873,7 +1862,6 @@ class TestCROSSINHERITANCE:
         assert pysub.f3() == "Python: PySub::f3()"
         assert ns.call_fs(pysub) == pysub.f1() + pysub.f2() + pysub.f3()
 
-    @mark.xfail(condition=IS_MAC, reason="Fails on OS X")
     def test38_protected_data(self):
         """Multiple cross inheritance with protected data"""
 

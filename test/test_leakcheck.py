@@ -2,7 +2,6 @@ import os
 import sys
 
 from pytest import mark, skip
-from support import IS_MAC
 
 nopsutil = False
 try:
@@ -11,7 +10,7 @@ except ImportError:
     nopsutil = True
 
 
-@mark.skipif(nopsutil == True, reason="module psutil not installed")
+@mark.skip(reason="disabled due to its sporadic nature, especially fragile on VMs")
 class TestLEAKCHECK:
     def setup_class(cls):
         import psutil
@@ -75,9 +74,6 @@ class TestLEAKCHECK:
 
         assert fail < M
 
-    @mark.xfail(
-        condition=IS_MAC, reason="std::string overload fails to resolve on OS X"
-    )
     def test01_free_functions(self):
         """Leak test of free functions"""
 
@@ -103,9 +99,6 @@ class TestLEAKCHECK:
         self.check_func(ns, "free_f_ret1")
         self.check_func(ns, "free_f_ret1")
 
-    @mark.xfail(
-        condition=IS_MAC, reason="std::string overload fails to resolve on OS X"
-    )
     def test02_test_static_methods(self):
         """Leak test of static methods"""
 
@@ -132,9 +125,6 @@ class TestLEAKCHECK:
             self.check_func(m, "static_method_ol", 42.0, tmpl_args="float")
             self.check_func(m, "static_method_ret")
 
-    @mark.xfail(
-        condition=IS_MAC, reason="std::string overload fails to resolve on OS X"
-    )
     def test03_test_methods(self):
         """Leak test of methods"""
 
@@ -282,3 +272,21 @@ class TestLEAKCHECK:
         ns.leak_list = wrapped_list_by_value
 
         self.check_func(ns, "leak_list")
+
+    def test09_initializer_list_argument(self):
+        """Leak check of passing a list as an std::initializer_list argument"""
+
+        import cppjit
+
+        cppjit.cppdef("""\
+        namespace LeakCheck {
+            int sum_il(std::initializer_list<int> l) {
+                int s = 0;
+                for (auto i : l) s += i;
+                return s;
+            }
+        }""")
+
+        ns = cppjit.gbl.LeakCheck
+
+        self.check_func(ns, "sum_il", [1, 2, 3])
