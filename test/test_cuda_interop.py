@@ -219,6 +219,32 @@ class TestCuPyInterop:
         cupy.cuda.runtime.deviceSynchronize()
         assert cupy.asnumpy(dense).tolist() == [0, 20, 40, 60, 80, 100, 120, 140]
 
+    def test07_multidim_arrays_launch_flat(self):
+        """a dense n-d array is handed over as a flat pointer, at 1-d cost"""
+
+        import time
+
+        import cppjit
+        import cupy
+
+        ensure_interop_kernels()
+        n = 4 * 8 * 8
+        arr = cupy.arange(n, dtype=cupy.int32).reshape(4, 8, 8)
+        kern = cppjit.gbl.cppjit_cuda_interop_scale
+        kern[1, n](arr, n, 3)
+        cupy.cuda.runtime.deviceSynchronize()
+        assert int(cupy.asnumpy(arr).sum()) == 3 * n * (n - 1) // 2
+
+        # a view with more than one dimension used to resolve its element
+        # converter through the interpreter on every launch (milliseconds)
+        launches = 1000
+        cupy.cuda.runtime.deviceSynchronize()
+        t0 = time.perf_counter()
+        for _ in range(launches):
+            kern[1, n](arr, n, 1)
+        cupy.cuda.runtime.deviceSynchronize()
+        assert time.perf_counter() - t0 < 1.0
+
 
 @mark.skipif(not HAS_TORCH, reason="torch not installed")
 class TestTorchInterop:

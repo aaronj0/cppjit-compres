@@ -826,8 +826,14 @@ static int tpp_cuda_device_arg(PyObject* obj, unsigned long long stream,
                    "buffers (copy it first)",
                    Py_TYPE(obj)->tp_name);
     } else {
-      out = CreateLowLevelViewFromTypestr((void*)ptr, ts,
-                                          dims_t(dims.size(), dims.data()));
+      // The kernel gets a pointer, not a layout, so the view is flat: a
+      // multi-dimensional view resolves its element converter through the
+      // interpreter when it is created, which would cost milliseconds on
+      // every launch.
+      dim_t total = 1;
+      for (dim_t d : dims)
+        total *= d;
+      out = CreateLowLevelViewFromTypestr((void*)ptr, ts, dims_t(1, &total));
       if (!out)
         PyErr_Format(PyExc_TypeError,
                      "no CUDA kernel argument type for buffers of type '%s'",
