@@ -245,6 +245,34 @@ class TestCuPyInterop:
         cupy.cuda.runtime.deviceSynchronize()
         assert time.perf_counter() - t0 < 1.0
 
+    def test08_int64_arrays_bind_to_long_long(self):
+        """'<i8'/'<u8' buffers bind to long long* and unsigned long long*"""
+
+        import cppjit
+        import cupy
+
+        if not hasattr(cppjit.gbl, "cppjit_cuda_interop_scale64"):
+            cppjit.cppdef("""
+            __global__ void cppjit_cuda_interop_scale64(long long* v, int n,
+                                                        long long f) {
+                int i = blockIdx.x * blockDim.x + threadIdx.x;
+                if (i < n) v[i] *= f;
+            }
+            __global__ void cppjit_cuda_interop_scaleu64(
+                unsigned long long* v, int n, unsigned long long f) {
+                int i = blockIdx.x * blockDim.x + threadIdx.x;
+                if (i < n) v[i] *= f;
+            }
+            """)
+        n = 64
+        a = cupy.arange(n, dtype=cupy.int64)
+        cppjit.gbl.cppjit_cuda_interop_scale64[1, n](a, n, 3)
+        u = cupy.arange(n, dtype=cupy.uint64)
+        cppjit.gbl.cppjit_cuda_interop_scaleu64[1, n](u, n, 5)
+        cupy.cuda.runtime.deviceSynchronize()
+        assert int(cupy.asnumpy(a).sum()) == 3 * n * (n - 1) // 2
+        assert int(cupy.asnumpy(u).sum()) == 5 * n * (n - 1) // 2
+
 
 @mark.skipif(not HAS_TORCH, reason="torch not installed")
 class TestTorchInterop:

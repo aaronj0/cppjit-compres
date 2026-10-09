@@ -450,6 +450,28 @@ static inline PY_LONG_LONG cpyrt_PyLong_AsStrictLongLong(PyObject* pyobject) {
   return PyLong_AsLongLong(pyobject); // already does long range check
 }
 
+//- helper for low level view format checks ----------------------------------
+static inline bool LLViewFormatMatches(const char* format, char tc) {
+  // `long` and `long long` have the same width on LP64, so a view of one
+  // binds to a pointer to the other: a device buffer typed '<i8' arrives as
+  // a long view and the kernel may take long long*.
+  if (strchr(format, tc))
+    return true;
+  if constexpr (sizeof(long) != sizeof(long long))
+    return false;
+  switch (tc) {
+  case 'l':
+    return strchr(format, 'q') != nullptr;
+  case 'q':
+    return strchr(format, 'l') != nullptr;
+  case 'L':
+    return strchr(format, 'Q') != nullptr;
+  case 'Q':
+    return strchr(format, 'L') != nullptr;
+  }
+  return false;
+}
+
 //- helper for pointer/array/reference conversions ---------------------------
 static inline bool CArraySetArg(PyObject* pyobject, cpyrt::Parameter& para,
                                 char tc, int size, bool check = true) {
@@ -459,7 +481,7 @@ static inline bool CArraySetArg(PyObject* pyobject, cpyrt::Parameter& para,
   if (cpyrt::LowLevelView_Check(pyobject)) {
     auto llview = ((cpyrt::LowLevelView*)pyobject);
     if (llview->fBufInfo.itemsize != size ||
-        !strchr(llview->fBufInfo.format, tc)) {
+        !LLViewFormatMatches(llview->fBufInfo.format, tc)) {
       PyErr_Format(PyExc_TypeError,
                    "could not convert argument to buffer or nullptr");
       return false;
@@ -1850,7 +1872,8 @@ bool ToArrayFromBuffer(PyObject* owner, void* address, PyObject* ctxt,
         convOk = true;                                                         \
       } else if (LowLevelView_Check(pyobject) &&                               \
                  ((LowLevelView*)pyobject)->fBufInfo.ndim == 2 &&              \
-                 strchr(((LowLevelView*)pyobject)->fBufInfo.format, code)) {   \
+                 LLViewFormatMatches(                                          \
+                     ((LowLevelView*)pyobject)->fBufInfo.format, code)) {      \
         para.fValue.fVoidp = ((LowLevelView*)pyobject)->get_buf();             \
         para.fTypeCode = 'p';                                                  \
         convOk = true;                                                         \
@@ -1877,7 +1900,8 @@ bool ToArrayFromBuffer(PyObject* owner, void* address, PyObject* ctxt,
           convOk = true;                                                       \
         }                                                                      \
       } else if (LowLevelView_Check(pyobject) &&                               \
-                 strchr(((LowLevelView*)pyobject)->fBufInfo.format, code)) {   \
+                 LLViewFormatMatches(                                          \
+                     ((LowLevelView*)pyobject)->fBufInfo.format, code)) {      \
         para.fValue.fVoidp = ((LowLevelView*)pyobject)->get_buf();             \
         para.fTypeCode = 'p';                                                  \
         convOk = true;                                                         \
