@@ -864,6 +864,33 @@ static int tpp_cuda_device_arg(PyObject* obj, unsigned long long stream,
     if (status < 0) {
       Py_CLEAR(out);
     }
+  } else if (status == 1 && version < 3 &&
+             PyObject_HasAttr(obj, PyStrings::gDLPackDevice) &&
+             PyObject_HasAttr(obj, PyStrings::gDLPack)) {
+    // Below version 3 the interface has no stream field, so nothing orders
+    // the launch after the producer's pending work (JAX publishes version
+    // 2). An exporter that also speaks DLPack orders the data on the stream
+    // the consumer names: ask it for a capsule on ours and let the capsule
+    // go. 0 is not a stream under DLPack; 1 is the legacy default stream.
+    PyObject* meth = PyObject_GetAttr(obj, PyStrings::gDLPack);
+    PyObject* consumer = PyLong_FromUnsignedLongLong(stream ? stream : 1);
+    PyObject* noargs = PyTuple_New(0);
+    PyObject* kwargs =
+        consumer ? Py_BuildValue("{s:O}", "stream", consumer) : nullptr;
+    PyObject* capsule = (meth && noargs && kwargs)
+                            ? PyObject_Call(meth, noargs, kwargs)
+                            : nullptr;
+    Py_XDECREF(kwargs);
+    Py_XDECREF(noargs);
+    Py_XDECREF(consumer);
+    Py_XDECREF(meth);
+    if (!capsule) {
+      // the exporter's exception says why the hand-over was refused
+      status = -1;
+      Py_CLEAR(out);
+    } else {
+      Py_DECREF(capsule); // never consumed: its destructor releases it
+    }
   }
 
   Py_DECREF(cai);

@@ -273,6 +273,38 @@ class TestCuPyInterop:
         assert int(cupy.asnumpy(a).sum()) == 3 * n * (n - 1) // 2
         assert int(cupy.asnumpy(u).sum()) == 5 * n * (n - 1) // 2
 
+    def test09_version2_interface_is_ordered_through_dlpack(self):
+        """a version-2 array interface (no stream field) is ordered by DLPack"""
+
+        import cppjit
+        import cupy
+
+        ensure_interop_kernels()
+
+        class VersionTwo:  # the interface as JAX publishes it: no stream
+            def __init__(self, a):
+                self._a = a
+                cai = dict(a.__cuda_array_interface__)
+                cai.pop("stream", None)
+                cai["version"] = 2
+                self.__cuda_array_interface__ = cai
+
+            def __dlpack_device__(self):
+                return self._a.__dlpack_device__()
+
+            def __dlpack__(self, **kwargs):
+                return self._a.__dlpack__(**kwargs)
+
+        n = 1 << 24
+        kern = cppjit.gbl.cppjit_cuda_interop_scale
+        # a non-blocking stream: the legacy default stream the launch goes to
+        # does not wait for it on its own
+        with cupy.cuda.Stream(non_blocking=True):
+            arr = cupy.ones(n, dtype=cupy.int32)  # queued, still in flight
+            kern[(n + 255) // 256, 256](VersionTwo(arr), n, 3)
+        cupy.cuda.runtime.deviceSynchronize()
+        assert int(cupy.asnumpy(arr).sum()) == 3 * n
+
 
 @mark.skipif(not HAS_TORCH, reason="torch not installed")
 class TestTorchInterop:

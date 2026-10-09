@@ -19,6 +19,7 @@ namespace cppjit::cpyrt {
   X(gCudaArrayInterface, "__cuda_array_interface__")                           \
   X(gArrayInterface, "__array_interface__")                                    \
   X(gDLPackDevice, "__dlpack_device__")                                        \
+  X(gDLPack, "__dlpack__")                                                     \
   X(gAnnotations, "__annotations__")                                           \
   X(gCastCpp, "__cast_cpp__")                                                  \
   X(gCType, "__ctype__")                                                       \
