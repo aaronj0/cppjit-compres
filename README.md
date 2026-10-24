@@ -129,7 +129,7 @@ standard library headers).
 
 Building from source requires:
 
-- LLVM/Clang development packages, version 21 or 22
+- LLVM/Clang development packages, version 22 or 23
 - Python 3.12+ with development headers
 - CMake 3.20+
 - A C++20 compiler: g++ 13+, or a Clang matching the LLVM major
@@ -146,12 +146,12 @@ Building from source requires:
 sudo apt-get update
 sudo apt-get install -y git cmake make g++ python3-dev python3-venv python3-pip \
     wget lsb-release software-properties-common gnupg libzstd-dev libedit-dev
-wget https://apt.llvm.org/llvm.sh && sudo bash llvm.sh 21
-sudo apt-get install -y llvm-21-dev libclang-21-dev clang-21 libpolly-21-dev
+wget https://apt.llvm.org/llvm.sh && sudo bash llvm.sh 22
+sudo apt-get install -y llvm-22-dev libclang-22-dev clang-22 libpolly-22-dev
 
 python3 -m venv venv && source venv/bin/activate
 git clone https://github.com/compiler-research/cppjit.git && cd cppjit
-pip install -v . --config-settings=cmake.define.LLVM_DIR=/usr/lib/llvm-21/lib/cmake/llvm
+pip install -v . --config-settings=cmake.define.LLVM_DIR=/usr/lib/llvm-22/lib/cmake/llvm
 ```
 
 </details>
@@ -160,10 +160,10 @@ pip install -v . --config-settings=cmake.define.LLVM_DIR=/usr/lib/llvm-21/lib/cm
 <summary><b>macOS</b></summary>
 
 ```bash
-brew install llvm@21 cmake ninja
+brew install llvm@22 cmake ninja
 python3 -m venv venv && source venv/bin/activate
 git clone https://github.com/compiler-research/cppjit.git && cd cppjit
-pip install -v . --config-settings=cmake.define.LLVM_DIR="$(brew --prefix llvm@21)/lib/cmake/llvm"
+pip install -v . --config-settings=cmake.define.LLVM_DIR="$(brew --prefix llvm@22)/lib/cmake/llvm"
 ```
 
 </details>
@@ -174,7 +174,7 @@ With the toolchain from the source installation above, an editable
 install with a persistent build directory gives incremental rebuilds:
 
 ```bash
-export LLVM_DIR=/usr/lib/llvm-21/lib/cmake/llvm   # your LLVM's CMake directory
+export LLVM_DIR=/usr/lib/llvm-22/lib/cmake/llvm   # your LLVM's CMake directory
 pip install scikit-build-core
 pip install --no-build-isolation -ve . \
     --config-settings=build-dir=build \
@@ -194,7 +194,7 @@ and assembles the Python package under `<build>/python`; point
 `PYTHONPATH` there instead of installing:
 
 ```bash
-export LLVM_DIR=/usr/lib/llvm-21/lib/cmake/llvm   # your LLVM's CMake directory
+export LLVM_DIR=/usr/lib/llvm-22/lib/cmake/llvm   # your LLVM's CMake directory
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR=$LLVM_DIR
 cmake --build build -j
 export PYTHONPATH=$PWD/build/python

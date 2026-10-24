@@ -8,7 +8,7 @@ not the current one. The notes of previously released versions are
 archived on the
 [releases page](https://github.com/compiler-research/cppjit/releases).
 
-This release supports Python 3.12-3.14 and LLVM 21-22.
+This release supports Python 3.12-3.14 and LLVM 22-23.
 
 ## Highlights
 
