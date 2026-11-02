@@ -7,7 +7,8 @@ name = "cppjit"
 dynamic = ["version"]
 description = "Automatic Python-C++ interoperability layer and bindings generator"
 readme = "README.md"
-license = "BSD-3-Clause-LBNL"
+license = "Apache-2.0 WITH LLVM-exception"
+license-files = ["LICENSE.txt", "AUTHORS"]
 requires-python = ">=3.12"
 classifiers = [
     "Development Status :: 3 - Alpha",
