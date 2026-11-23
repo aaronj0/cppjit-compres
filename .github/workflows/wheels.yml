@@ -58,7 +58,7 @@ jobs:
           version: '22.1.8'
           os: ${{ matrix.os }}
           arch: ${{ matrix.arch }}
-          ref: 02f380b2e46746cd1c948c085894b8594a867fba
+          ref: dbcc2ed909b80796e8e7edb4f276c6b0030bd2a5
 
       - name: Stage the toolchain at /opt/llvm
         env:
@@ -183,7 +183,7 @@ jobs:
           version: '22.1.8'
           os: ubuntu-24.04
           arch: x86_64
-          ref: 02f380b2e46746cd1c948c085894b8594a867fba
+          ref: dbcc2ed909b80796e8e7edb4f276c6b0030bd2a5
 
       - uses: actions/download-artifact@v8
         with:
